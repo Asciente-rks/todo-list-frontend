@@ -5,7 +5,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // can sometimes replace variables with that literal string in minified code.
 const envUrl = process.env.EXPO_PUBLIC_API_URL;
 const BASE_URL =
-  envUrl && envUrl !== "undefined" && envUrl !== "null"
+  envUrl &&
+  envUrl !== "undefined" &&
+  envUrl !== "null" &&
+  envUrl.startsWith("http")
     ? envUrl
     : "https://todo-list-backend-4li8.onrender.com/api";
 
@@ -15,7 +18,7 @@ const apiClient = axios.create({
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  timeout: 30000, // 30 seconds to allow Render to "wake up"
+  timeout: 60000, // Increased to 60s for slow Render cold starts
 });
 
 apiClient.interceptors.request.use(async (config) => {

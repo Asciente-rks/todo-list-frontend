@@ -21,6 +21,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isWakingUp, setIsWakingUp] = useState(false);
 
   useEffect(() => {
     // Sanity check for the built app
@@ -36,6 +37,10 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       return Alert.alert("Error", "Please fill in all fields");
 
     setLoading(true);
+
+    // Set a timer to show wake-up message if it takes longer than 3 seconds
+    const wakeUpTimer = setTimeout(() => setIsWakingUp(true), 3000);
+
     try {
       const data = await login(username, password);
       await AsyncStorage.setItem("token", data.token);
@@ -46,16 +51,24 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       onAuthSuccess();
     } catch (error: any) {
       const status = error.response?.status;
-      const url = apiClient.defaults.baseURL;
+      const url = apiClient.defaults.baseURL || "";
       const backendError =
         error.response?.data?.error || error.message || "Unknown Error";
 
-      // Detailed alert for APK debugging
-      Alert.alert(
-        "Login Failed",
-        `Status: ${status}\nURL: ${url}\nError: ${backendError}`,
-      );
+      if (error.message === "Network Error" || !status) {
+        Alert.alert(
+          "Server Waking Up",
+          "The backend is taking a moment to start. Please wait 30 seconds and try again.",
+        );
+      } else {
+        Alert.alert(
+          "Login Failed",
+          `Status: ${status}\nURL: ${url}\nError: ${backendError}`,
+        );
+      }
     } finally {
+      clearTimeout(wakeUpTimer);
+      setIsWakingUp(false);
       setLoading(false);
     }
   };
@@ -85,7 +98,14 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <ActivityIndicator color="#fff" />
+            {isWakingUp && (
+              <Text style={{ color: "#fff", marginLeft: 10 }}>
+                Waking up server...
+              </Text>
+            )}
+          </View>
         ) : (
           <Text style={styles.buttonText}>Login</Text>
         )}
