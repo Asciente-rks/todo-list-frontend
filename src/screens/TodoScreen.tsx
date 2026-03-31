@@ -71,7 +71,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
         setUser(userData);
       }
     } catch (error) {
-      Alert.alert("Connection Error", "Ensure your backend is awake.");
+      // Silently fail if server isn't awake yet; user can pull to refresh later
     } finally {
       setLoading(false);
     }

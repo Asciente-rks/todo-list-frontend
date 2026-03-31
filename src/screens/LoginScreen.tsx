@@ -24,11 +24,9 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
   const [isWakingUp, setIsWakingUp] = useState(false);
 
   useEffect(() => {
-    // Pre-warm the Render backend using your new operational route.
-    // This "rings the doorbell" so Render starts booting while you type.
-    apiClient.get("").catch(() => {
-      /* Ignore errors; we just want to trigger the spin-up */
-    });
+    // Wake up the backend by hitting the base API route
+    // We hit an empty string to hit exactly the baseURL (/api)
+    apiClient.get("").catch(() => {});
 
     // Sanity check for the built app
     if (!process.env.EXPO_PUBLIC_API_URL) {
@@ -57,24 +55,14 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       onAuthSuccess();
     } catch (error: any) {
       const status: number | undefined = error.response?.status;
-      const url: string = String(apiClient.defaults.baseURL ?? "URL_NOT_SET");
-      const backendError =
-        error.response?.data?.error || error.message || "Unknown Error";
 
-      if (error.message === "Network Error" || !status) {
-        Alert.alert(
-          "Connectivity Issue",
-          "The app cannot reach the server. Since your backend is live, this is usually a temporary cold-start delay. Please wait 15 seconds and try again.",
-          [
-            { text: "Retry Now", onPress: handleLogin },
-            { text: "Cancel", style: "cancel" },
-          ],
-        );
-      } else {
-        Alert.alert(
-          "Login Failed",
-          `Status: ${status ?? "No Response"}\nURL: ${url}\nError: ${backendError}\n\nIf status is 404, verify your /api/users/login route is correct.`,
-        );
+      // We only alert the user if the server actually responded with a specific error (e.g., 401 Unauthorized).
+      // If there is no status, it's a network/connectivity error (server likely sleeping).
+      // We fail silently so you can just tap login again without a popup blocking you.
+      if (status) {
+        const backendError =
+          error.response?.data?.error || "Invalid username or password";
+        Alert.alert("Login Failed", backendError);
       }
     } finally {
       clearTimeout(wakeUpTimer);

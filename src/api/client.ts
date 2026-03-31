@@ -4,13 +4,22 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // We check for the string "undefined" because build-time injection
 // can sometimes replace variables with that literal string in minified code.
 const envUrl = process.env.EXPO_PUBLIC_API_URL;
-const BASE_URL =
+
+let cleanUrl =
   envUrl &&
   envUrl !== "undefined" &&
   envUrl !== "null" &&
   envUrl.startsWith("http")
     ? envUrl
     : "https://todo-list-backend-4li8.onrender.com/api";
+
+cleanUrl = cleanUrl.trim();
+// Ensure the URL ends with /api once and only once
+if (!cleanUrl.endsWith("/api")) {
+  cleanUrl = cleanUrl.replace(/\/$/, "") + "/api";
+}
+
+const BASE_URL = cleanUrl;
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
