@@ -57,23 +57,23 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       onAuthSuccess();
     } catch (error: any) {
       const status: number | undefined = error.response?.status;
-      const url: string = apiClient.defaults.baseURL || "URL_NOT_SET";
+      const url: string = String(apiClient.defaults.baseURL ?? "URL_NOT_SET");
       const backendError =
         error.response?.data?.error || error.message || "Unknown Error";
 
       if (error.message === "Network Error" || !status) {
         Alert.alert(
           "Connectivity Issue",
-          "The app cannot reach the server. This is usually due to the server waking up OR a CORS configuration error on the backend.",
+          "The app cannot reach the server. Since your backend is live, this is usually a temporary cold-start delay. Please wait 15 seconds and try again.",
           [
-            { text: "Try Again", onPress: handleLogin },
+            { text: "Retry Now", onPress: handleLogin },
             { text: "Cancel", style: "cancel" },
           ],
         );
       } else {
         Alert.alert(
           "Login Failed",
-          `Status: ${status}\nURL: ${url}\nError: ${backendError}\n\nIf status is 404, check if your login path is /api/users/login or /api/login.`,
+          `Status: ${status ?? "No Response"}\nURL: ${url}\nError: ${backendError}\n\nIf status is 404, verify your /api/users/login route is correct.`,
         );
       }
     } finally {
