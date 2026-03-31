@@ -6,12 +6,12 @@ export const getTodos = async (): Promise<Todo[]> => {
 };
 
 export const createTodo = async (
-  newTodoData: Pick<Todo, "title" | "description" | "dueDate" | "completed">,
+  newTodo: Pick<Todo, "title" | "description" | "dueDate" | "completed">,
 ): Promise<Todo> => {
   const payload = {
-    ...newTodoData,
-    dueDate: newTodoData.dueDate
-      ? newTodoData.dueDate.toISOString().split("T")[0]
+    ...newTodo,
+    dueDate: newTodo.dueDate
+      ? newTodo.dueDate.toISOString().split("T")[0]
       : null,
   };
   return await apiClient.post("/todos/create", payload);
@@ -31,11 +31,6 @@ export const toggleTodoStatus = async (
   });
 };
 
-export const deleteTodo = async (id: string): Promise<void> => {
-  if (!id) throw new Error("Todo ID undefined");
-  await apiClient.delete(`/todos/${id}`);
-};
-
 export const updateTodo = async (
   id: string,
   updatedFields: Partial<Todo>,
@@ -50,4 +45,9 @@ export const updateTodo = async (
         : updatedFields.dueDate,
   };
   return await apiClient.patch(`/todos/${id}`, payload);
+};
+
+export const deleteTodo = async (id: string): Promise<void> => {
+  if (!id) throw new Error("Todo ID undefined");
+  await apiClient.delete(`/todos/${id}`);
 };

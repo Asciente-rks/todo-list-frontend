@@ -1,16 +1,14 @@
-// src/client.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Base URL
-const BASE_URL =
+// Base URL (fallback if env not set)
+export const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL?.trim() ||
   "https://todo-list-backend-4li8.onrender.com/api";
 
-// Debug
-console.log("BASE_URL:", BASE_URL);
+console.log("[API BASE_URL]", BASE_URL);
 
-// Core request function
-const apiRequest = async (
+// Core API request function
+export const apiRequest = async (
   path: string,
   options: RequestInit = {},
 ): Promise<any> => {
@@ -42,36 +40,7 @@ const apiRequest = async (
   }
 };
 
-// Auth functions
-export const login = async (username: string, password: string) => {
-  const data = await apiRequest("/users/login", {
-    method: "POST",
-    body: JSON.stringify({ username, password }),
-  });
-
-  if (data.token) await AsyncStorage.setItem("token", data.token);
-  if (data.user?._id) await AsyncStorage.setItem("userId", data.user._id);
-
-  return data;
-};
-
-export const register = async (
-  email: string,
-  username: string,
-  password: string,
-) => {
-  const data = await apiRequest("/users/register", {
-    method: "POST",
-    body: JSON.stringify({ email, username, password }),
-  });
-
-  if (data.token) await AsyncStorage.setItem("token", data.token);
-  if (data.user?._id) await AsyncStorage.setItem("userId", data.user._id);
-
-  return data;
-};
-
-// Generic API client
+// Generic API client for convenience
 export const apiClient = {
   get: (path: string) => apiRequest(path, { method: "GET" }),
   post: (path: string, body: any) =>
