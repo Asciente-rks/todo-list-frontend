@@ -18,7 +18,7 @@ const apiClient = axios.create({
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  timeout: 60000, // Increased to 60s for slow Render cold starts
+  timeout: 60000, // 60s is necessary for Render cold starts
 });
 
 apiClient.interceptors.request.use(async (config) => {

@@ -24,6 +24,12 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
   const [isWakingUp, setIsWakingUp] = useState(false);
 
   useEffect(() => {
+    // Pre-warm the Render backend using your new operational route.
+    // This "rings the doorbell" so Render starts booting while you type.
+    apiClient.get("").catch(() => {
+      /* Ignore errors; we just want to trigger the spin-up */
+    });
+
     // Sanity check for the built app
     if (!process.env.EXPO_PUBLIC_API_URL) {
       console.warn(
@@ -50,20 +56,24 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       }
       onAuthSuccess();
     } catch (error: any) {
-      const status = error.response?.status;
-      const url = apiClient.defaults.baseURL || "";
+      const status: number | undefined = error.response?.status;
+      const url: string = apiClient.defaults.baseURL ?? "URL_NOT_SET";
       const backendError =
         error.response?.data?.error || error.message || "Unknown Error";
 
       if (error.message === "Network Error" || !status) {
         Alert.alert(
           "Server Waking Up",
-          "The backend is taking a moment to start. Please wait 30 seconds and try again.",
+          "The backend is spinning up (Render Free Tier delay). We've sent a wake-up signal. Please wait 20 seconds and tap Login again.",
+          [
+            { text: "Retry Now", onPress: handleLogin },
+            { text: "Wait", style: "cancel" },
+          ],
         );
       } else {
         Alert.alert(
           "Login Failed",
-          `Status: ${status}\nURL: ${url}\nError: ${backendError}`,
+          `Status: ${status ?? "No Connection"}\nURL: ${url}\nError: ${backendError}`,
         );
       }
     } finally {
