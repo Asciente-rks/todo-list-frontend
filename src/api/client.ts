@@ -1,39 +1,78 @@
-import axios from "axios";
+// src/client.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// 🔥 Simple + reliable base URL
+// Base URL
 const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL?.trim() ||
   "https://todo-list-backend-4li8.onrender.com/api";
 
-// 🔍 Debug (REMOVE later after fixing)
-console.log("ENV URL:", process.env.EXPO_PUBLIC_API_URL);
+// Debug
 console.log("BASE_URL:", BASE_URL);
 
-const apiClient = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  },
-  timeout: 10000, // shorter timeout = faster retry handling
-});
+// Core request function
+const apiRequest = async (
+  path: string,
+  options: RequestInit = {},
+): Promise<any> => {
+  try {
+    const token = await AsyncStorage.getItem("token");
 
-// 🔐 Attach token automatically
-apiClient.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem("token");
+    // ✅ TypeScript-safe headers
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...(options.headers as Record<string, string>),
+    };
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers,
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${res.status}`);
+    }
+
+    return await res.json();
+  } catch (err: any) {
+    console.error(`[API ERROR] ${path}:`, err.message);
+    throw err;
   }
+};
 
-  return config;
-});
+// Auth API
+export const login = async (username: string, password: string) => {
+  return apiRequest("/users/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+};
 
-// ❌ Let errors pass through (no UI blocking here)
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => Promise.reject(error),
-);
+export const register = async (
+  email: string,
+  password: string,
+  username: string,
+) => {
+  return apiRequest("/users/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password, username }),
+  });
+};
 
+// General API client
+export const apiClient = {
+  get: (path: string) => apiRequest(path, { method: "GET" }),
+  post: (path: string, body: any) =>
+    apiRequest(path, { method: "POST", body: JSON.stringify(body) }),
+  put: (path: string, body: any) =>
+    apiRequest(path, { method: "PUT", body: JSON.stringify(body) }),
+  patch: (path: string, body: any) =>
+    apiRequest(path, { method: "PATCH", body: JSON.stringify(body) }),
+  delete: (path: string) => apiRequest(path, { method: "DELETE" }),
+};
+
+// ✅ Optional: default export to satisfy old imports
 export default apiClient;
