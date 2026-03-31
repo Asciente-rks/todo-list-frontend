@@ -1,3 +1,4 @@
+// src/api/todoService.ts
 import { apiClient } from "./client";
 import { Todo } from "../types/todo";
 
@@ -6,12 +7,12 @@ export const getTodos = async (): Promise<Todo[]> => {
 };
 
 export const createTodo = async (
-  newTodo: Pick<Todo, "title" | "description" | "dueDate" | "completed">,
+  newTodoData: Pick<Todo, "title" | "description" | "dueDate" | "completed">,
 ): Promise<Todo> => {
   const payload = {
-    ...newTodo,
-    dueDate: newTodo.dueDate
-      ? newTodo.dueDate.toISOString().split("T")[0]
+    ...newTodoData,
+    dueDate: newTodoData.dueDate
+      ? newTodoData.dueDate.toISOString().split("T")[0]
       : null,
   };
   return await apiClient.post("/todos/create", payload);

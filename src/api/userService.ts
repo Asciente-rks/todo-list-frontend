@@ -1,3 +1,5 @@
+// src/api/userService.ts
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiClient } from "./client";
 
 export interface UserProfile {
@@ -7,12 +9,12 @@ export interface UserProfile {
   email: string;
 }
 
-// Get user profile by ID
+// Fetch profile
 export const getProfile = async (userId: string): Promise<UserProfile> => {
   return await apiClient.get(`/users/${userId}`);
 };
 
-// Update user profile by ID
+// Update profile
 export const updateProfile = async (
   userId: string,
   data: Partial<UserProfile>,

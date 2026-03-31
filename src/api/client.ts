@@ -1,17 +1,16 @@
+// src/api/client.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Base URL (fallback if env not set)
-export const BASE_URL =
+// Base URL (use env for build)
+const BASE_URL =
   process.env.EXPO_PUBLIC_API_URL?.trim() ||
   "https://todo-list-backend-4li8.onrender.com/api";
 
-console.log("[API BASE_URL]", BASE_URL);
+// Debug
+console.log("BASE_URL:", BASE_URL);
 
 // Core API request function
-export const apiRequest = async (
-  path: string,
-  options: RequestInit = {},
-): Promise<any> => {
+const apiRequest = async (path: string, options: RequestInit = {}) => {
   try {
     const token = await AsyncStorage.getItem("token");
 
@@ -40,7 +39,7 @@ export const apiRequest = async (
   }
 };
 
-// Generic API client for convenience
+// Generic API client
 export const apiClient = {
   get: (path: string) => apiRequest(path, { method: "GET" }),
   post: (path: string, body: any) =>
