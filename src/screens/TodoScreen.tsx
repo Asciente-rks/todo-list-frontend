@@ -291,6 +291,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <TextInput
               style={styles.modalInput}
               value={editUsername}
+              placeholderTextColor="#999"
               onChangeText={setEditUsername}
             />
 
@@ -298,6 +299,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <TextInput
               style={styles.modalInput}
               value={editEmail}
+              placeholderTextColor="#999"
               onChangeText={setEditEmail}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -309,6 +311,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <TextInput
               style={styles.modalInput}
               value={newPassword}
+              placeholderTextColor="#999"
               onChangeText={setNewPassword}
               secureTextEntry
               placeholder="••••••••"
@@ -319,6 +322,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
               <TextInput
                 style={[styles.modalInput, styles.confirmInput]}
                 value={currentPassword}
+                placeholderTextColor="#999"
                 onChangeText={setCurrentPassword}
                 secureTextEntry
                 placeholder="Enter current password"
@@ -361,6 +365,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <TextInput
               style={styles.modalInput}
               value={editTitle}
+              placeholderTextColor="#999"
               onChangeText={setEditTitle}
               placeholder="Task Title"
             />
@@ -368,6 +373,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <TextInput
               style={[styles.modalInput, styles.modalDescription]}
               value={editDescription}
+              placeholderTextColor="#999"
               onChangeText={setEditDescription}
               placeholder="Description (optional)"
               multiline
@@ -507,6 +513,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e9ecef",
     borderRadius: 8,
+    color: "#212529",
     padding: 12,
     fontSize: 16,
     marginBottom: 15,

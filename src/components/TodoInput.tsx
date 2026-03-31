@@ -38,6 +38,7 @@ export const TodoInput = ({ onAdd }: Props) => {
       <TextInput
         style={styles.input}
         placeholder="Add a new task..."
+        placeholderTextColor="#adb5bd"
         value={task}
         onChangeText={setTask}
         onSubmitEditing={handleAdd}
@@ -46,6 +47,7 @@ export const TodoInput = ({ onAdd }: Props) => {
       <TextInput
         style={[styles.input, styles.descriptionInput]}
         placeholder="Description (optional)"
+        placeholderTextColor="#adb5bd"
         value={description}
         onChangeText={setDescription}
         multiline
@@ -103,6 +105,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     backgroundColor: "#fff",
+    color: "#212529",
     fontSize: 16,
   },
   buttonRow: {

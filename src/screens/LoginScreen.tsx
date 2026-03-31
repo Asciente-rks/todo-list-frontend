@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { login } from "../api/authService";
+import apiClient from "../api/client";
 
 interface Props {
   onAuthSuccess: () => void;
@@ -21,9 +22,19 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    // Sanity check for the built app
+    if (!process.env.EXPO_PUBLIC_API_URL) {
+      console.warn(
+        "API URL is undefined. Check your EAS Secrets or .env file.",
+      );
+    }
+  }, []);
+
   const handleLogin = async () => {
     if (!username || !password)
       return Alert.alert("Error", "Please fill in all fields");
+
     setLoading(true);
     try {
       const data = await login(username, password);
@@ -34,9 +45,16 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       }
       onAuthSuccess();
     } catch (error: any) {
+      const status = error.response?.status;
+      const url = apiClient.defaults.baseURL;
       const backendError =
-        error.response?.data?.error || "Invalid email or password";
-      Alert.alert("Login Failed", backendError);
+        error.response?.data?.error || error.message || "Unknown Error";
+
+      // Detailed alert for APK debugging
+      Alert.alert(
+        "Login Failed",
+        `Status: ${status}\nURL: ${url}\nError: ${backendError}`,
+      );
     } finally {
       setLoading(false);
     }
@@ -48,6 +66,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       <TextInput
         style={styles.input}
         placeholder="Username"
+        placeholderTextColor="#6c757d"
         value={username}
         onChangeText={setUsername}
         autoCapitalize="none"
@@ -55,6 +74,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#6c757d"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -93,6 +113,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: "#fff",
+    color: "#000",
     padding: 15,
     borderRadius: 8,
     marginBottom: 15,

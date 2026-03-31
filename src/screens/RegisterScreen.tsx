@@ -34,9 +34,11 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
         [{ text: "OK", onPress: onSwitchToLogin }],
       );
     } catch (error: any) {
+      // Improved error visibility for debugging APKs
       const backendError =
         error.response?.data?.errors?.[0]?.message ||
         error.response?.data?.error ||
+        error.message ||
         "Could not create account";
       Alert.alert("Registration Failed", backendError);
     } finally {
@@ -50,12 +52,14 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
       <TextInput
         style={styles.input}
         placeholder="Username"
+        placeholderTextColor="#6c757d"
         value={username}
         onChangeText={setUsername}
       />
       <TextInput
         style={styles.input}
         placeholder="Email"
+        placeholderTextColor="#6c757d"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -63,6 +67,7 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#6c757d"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -101,6 +106,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: "#fff",
+    color: "#000",
     padding: 15,
     borderRadius: 8,
     marginBottom: 15,

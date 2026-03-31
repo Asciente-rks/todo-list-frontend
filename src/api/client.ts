@@ -1,14 +1,23 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// We check for the string "undefined" because build-time injection
+// can sometimes replace variables with that literal string in minified code.
+const envUrl = process.env.EXPO_PUBLIC_API_URL;
+const BASE_URL =
+  envUrl && envUrl !== "undefined" && envUrl !== "null"
+    ? envUrl
+    : "https://todo-list-backend-4li8.onrender.com/api";
+
 const apiClient = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL,
+  baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
+    Accept: "application/json",
   },
+  timeout: 30000, // 30 seconds to allow Render to "wake up"
 });
 
-// Automatically add the JWT token to every request
 apiClient.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem("token");
   if (token) {
@@ -17,11 +26,11 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Basic error logger
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error("API Error:", error.response?.data || error.message);
+    // Let the calling function handle the error.
+    // Removing the Alert here prevents UI blocks during the auth flow.
     return Promise.reject(error);
   },
 );
