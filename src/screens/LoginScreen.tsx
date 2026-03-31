@@ -57,23 +57,23 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       onAuthSuccess();
     } catch (error: any) {
       const status: number | undefined = error.response?.status;
-      const url: string = apiClient.defaults.baseURL ?? "URL_NOT_SET";
+      const url: string = apiClient.defaults.baseURL || "URL_NOT_SET";
       const backendError =
         error.response?.data?.error || error.message || "Unknown Error";
 
       if (error.message === "Network Error" || !status) {
         Alert.alert(
-          "Server Waking Up",
-          "The backend is spinning up (Render Free Tier delay). We've sent a wake-up signal. Please wait 20 seconds and tap Login again.",
+          "Connectivity Issue",
+          "The app cannot reach the server. This is usually due to the server waking up OR a CORS configuration error on the backend.",
           [
-            { text: "Retry Now", onPress: handleLogin },
-            { text: "Wait", style: "cancel" },
+            { text: "Try Again", onPress: handleLogin },
+            { text: "Cancel", style: "cancel" },
           ],
         );
       } else {
         Alert.alert(
           "Login Failed",
-          `Status: ${status ?? "No Connection"}\nURL: ${url}\nError: ${backendError}`,
+          `Status: ${status}\nURL: ${url}\nError: ${backendError}\n\nIf status is 404, check if your login path is /api/users/login or /api/login.`,
         );
       }
     } finally {
