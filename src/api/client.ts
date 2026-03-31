@@ -17,7 +17,6 @@ const apiRequest = async (
   try {
     const token = await AsyncStorage.getItem("token");
 
-    // ✅ TypeScript-safe headers
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       Accept: "application/json",
@@ -43,26 +42,36 @@ const apiRequest = async (
   }
 };
 
-// Auth API
+// Auth functions
 export const login = async (username: string, password: string) => {
-  return apiRequest("/users/login", {
+  const data = await apiRequest("/users/login", {
     method: "POST",
     body: JSON.stringify({ username, password }),
   });
+
+  if (data.token) await AsyncStorage.setItem("token", data.token);
+  if (data.user?._id) await AsyncStorage.setItem("userId", data.user._id);
+
+  return data;
 };
 
 export const register = async (
   email: string,
-  password: string,
   username: string,
+  password: string,
 ) => {
-  return apiRequest("/users/register", {
+  const data = await apiRequest("/users/register", {
     method: "POST",
-    body: JSON.stringify({ email, password, username }),
+    body: JSON.stringify({ email, username, password }),
   });
+
+  if (data.token) await AsyncStorage.setItem("token", data.token);
+  if (data.user?._id) await AsyncStorage.setItem("userId", data.user._id);
+
+  return data;
 };
 
-// General API client
+// Generic API client
 export const apiClient = {
   get: (path: string) => apiRequest(path, { method: "GET" }),
   post: (path: string, body: any) =>
@@ -74,5 +83,4 @@ export const apiClient = {
   delete: (path: string) => apiRequest(path, { method: "DELETE" }),
 };
 
-// ✅ Optional: default export to satisfy old imports
 export default apiClient;
