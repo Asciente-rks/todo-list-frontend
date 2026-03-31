@@ -5,8 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TodoScreen } from "./src/screens/TodoScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { RegisterScreen } from "./src/screens/RegisterScreen";
-
-const BACKEND_URL = "https://todo-list-backend-4li8.onrender.com/api";
+import { BASE_URL } from "./src/api/client";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -20,7 +19,7 @@ export default function App() {
     const checkBackend = async (retries = 5, delay = 3000) => {
       for (let i = 0; i < retries; i++) {
         try {
-          const res = await fetch(BACKEND_URL);
+          const res = await fetch(BASE_URL);
           const data = await res.json();
           setBackendStatus("Backend online ✅");
           console.log("FETCH TEST SUCCESS:", data);

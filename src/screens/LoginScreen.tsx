@@ -54,16 +54,9 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       }
       onAuthSuccess();
     } catch (error: any) {
-      const status: number | undefined = error.response?.status;
-
-      // We only alert the user if the server actually responded with a specific error (e.g., 401 Unauthorized).
-      // If there is no status, it's a network/connectivity error (server likely sleeping).
-      // We fail silently so you can just tap login again without a popup blocking you.
-      if (status) {
-        const backendError =
-          error.response?.data?.error || "Invalid username or password";
-        Alert.alert("Login Failed", backendError);
-      }
+      // apiClient uses fetch, so we use the Error message thrown in client.ts
+      const errorMessage = error.message || "Invalid username or password";
+      Alert.alert("Login Failed", errorMessage);
     } finally {
       clearTimeout(wakeUpTimer);
       setIsWakingUp(false);

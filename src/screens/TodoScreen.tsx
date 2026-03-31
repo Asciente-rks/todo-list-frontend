@@ -184,7 +184,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
     } catch (error: any) {
       Alert.alert(
         "Update Failed",
-        error.response?.data?.error || "Check your current password.",
+        error.message || "Check your current password.",
       );
     } finally {
       setIsUpdatingUser(false);

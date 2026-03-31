@@ -2,15 +2,22 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Base URL (use env for build)
-const BASE_URL =
+const rawBaseUrl =
   process.env.EXPO_PUBLIC_API_URL?.trim() ||
   "https://todo-list-backend-4li8.onrender.com/api";
+// Ensure it does not end with a slash to prevent double slashes in requests
+export const BASE_URL = rawBaseUrl.endsWith("/")
+  ? rawBaseUrl.slice(0, -1)
+  : rawBaseUrl;
 
 // Debug
 console.log("BASE_URL:", BASE_URL);
 
 // Core API request function
 const apiRequest = async (path: string, options: RequestInit = {}) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
   try {
     const token = await AsyncStorage.getItem("token");
 
@@ -22,10 +29,18 @@ const apiRequest = async (path: string, options: RequestInit = {}) => {
 
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const res = await fetch(`${BASE_URL}${path}`, {
+    // 🔹 Ensure exactly one slash between BASE_URL and path
+    const fullUrl = path
+      ? `${BASE_URL}/${path.startsWith("/") ? path.slice(1) : path}`
+      : BASE_URL;
+
+    const res = await fetch(fullUrl, {
       ...options,
       headers,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
@@ -34,7 +49,8 @@ const apiRequest = async (path: string, options: RequestInit = {}) => {
 
     return await res.json();
   } catch (err: any) {
-    console.error(`[API ERROR] ${path}:`, err.message);
+    clearTimeout(timeoutId);
+    console.error(`[API ERROR] ${path} (Target: ${BASE_URL}):`, err.message);
     throw err;
   }
 };

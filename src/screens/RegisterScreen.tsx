@@ -27,20 +27,17 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
       return Alert.alert("Error", "Please fill in all fields");
     setLoading(true);
     try {
-      await register(email, password, username);
+      // Fixed parameter order: email, username, password
+      await register(email, username, password);
       Alert.alert(
         "Registration Successful",
         "Your account has been created. Please log in with your credentials.",
         [{ text: "OK", onPress: onSwitchToLogin }],
       );
     } catch (error: any) {
-      // Improved error visibility for debugging APKs
-      const backendError =
-        error.response?.data?.errors?.[0]?.message ||
-        error.response?.data?.error ||
-        error.message ||
-        "Could not create account";
-      Alert.alert("Registration Failed", backendError);
+      // Use the error message directly since we are using fetch
+      const errorMessage = error.message || "Could not create account";
+      Alert.alert("Registration Failed", errorMessage);
     } finally {
       setLoading(false);
     }
