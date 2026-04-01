@@ -1,11 +1,10 @@
-// src/api/client.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 
-// 🚨 Safe BASE_URL: fallback ensures app won't crash
+// Safe BASE_URL fallback
 const rawBaseUrl =
   (Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL_PLAIN || "").trim() ||
-  "https://todo-list-backend-4li8.onrender.com/api"; // fallback if missing
+  "https://todo-list-backend-4li8.onrender.com/api";
 
 export const BASE_URL = rawBaseUrl.endsWith("/")
   ? rawBaseUrl.slice(0, -1)
@@ -13,34 +12,44 @@ export const BASE_URL = rawBaseUrl.endsWith("/")
 
 console.log("✅ BASE_URL:", BASE_URL);
 
-// Core API request function
+// Wait for token to exist
+const waitForToken = async (): Promise<string> => {
+  let token = await AsyncStorage.getItem("token");
+  while (!token) {
+    console.log("⏳ Waiting for token to be available...");
+    await new Promise((res) => setTimeout(res, 100));
+    token = await AsyncStorage.getItem("token");
+  }
+  return token;
+};
+
+// Core API request
 const apiRequest = async (path: string, options: RequestInit = {}) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
+
   try {
-    // Get token if it exists (login/register may not have a token yet)
-    const token = await AsyncStorage.getItem("token");
+    const token = await waitForToken();
 
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
+      Authorization: `Bearer ${token}`,
     };
-
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    } else {
-      console.log("🔓 No token (public request):", path);
-    }
 
     const cleanPath = path.startsWith("/") ? path.slice(1) : path;
     const fullUrl = `${BASE_URL}/${cleanPath}`;
 
     console.log("➡️ API CALL:", fullUrl);
 
-    // 🔥 Remove AbortController for Android APK stability
     const res = await fetch(fullUrl, {
       ...options,
       headers,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     const text = await res.text();
     let data;
@@ -57,18 +66,17 @@ const apiRequest = async (path: string, options: RequestInit = {}) => {
         status: res.status,
         data,
       });
-
       throw new Error(data?.error || `HTTP ${res.status}`);
     }
 
     return data;
   } catch (err: any) {
+    clearTimeout(timeoutId);
     console.error("❌ FETCH FAILED:", {
       path,
       base: BASE_URL,
       message: err.message,
     });
-
     throw err;
   }
 };

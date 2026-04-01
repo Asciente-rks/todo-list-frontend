@@ -1,4 +1,3 @@
-// src/screens/TodoScreen.tsx
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -9,9 +8,16 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   LayoutAnimation,
+  Modal,
+  TextInput,
+  Button,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Todo } from "../types/todo";
+import { TodoItem } from "../components/TodoItem";
+import { TodoInput } from "../components/TodoInput";
+import { UserCircle } from "lucide-react-native";
 import {
   getTodos,
   createTodo,
@@ -20,10 +26,6 @@ import {
   updateTodo,
 } from "../api/todoService";
 import { getProfile, updateProfile, UserProfile } from "../api/userService";
-import { Todo } from "../types/todo";
-import { TodoItem } from "../components/TodoItem";
-import { TodoInput } from "../components/TodoInput";
-import { UserCircle } from "lucide-react-native";
 
 interface Props {
   onLogout: () => void;
@@ -49,6 +51,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
   const [editDescription, setEditDescription] = useState("");
   const [editDueDate, setEditDueDate] = useState<Date | null>(null);
 
+  // Fetch todos and user profile
   const fetchData = async () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setLoading(true);
@@ -66,6 +69,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
     }
   };
 
+  // Add Todo
   const handleAddTodo = async (
     title: string,
     description: string,
@@ -80,11 +84,12 @@ export const TodoScreen = ({ onLogout }: Props) => {
         completed: false,
       });
       setTodos([...todos, newTodo]);
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Could not add task");
     }
   };
 
+  // Toggle Todo complete
   const handleToggle = async (todo: Todo) => {
     const id = todo._id || todo.id;
     if (!id) return;
@@ -97,6 +102,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
     }
   };
 
+  // Delete Todo
   const handleDelete = async (todo: Todo) => {
     const id = todo._id || todo.id;
     if (!id) return;
@@ -110,6 +116,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
     }
   };
 
+  // Edit Todo modal
   const handleEdit = (todo: Todo) => {
     setEditingTodo(todo);
     setEditTitle(todo.title);
@@ -137,6 +144,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
     }
   };
 
+  // Profile modal
   const handleOpenProfile = () => {
     if (!user) return;
     setEditUsername(user.username);
@@ -155,7 +163,11 @@ export const TodoScreen = ({ onLogout }: Props) => {
     }
     setIsUpdatingUser(true);
     try {
-      const payload: any = { username: editUsername, email: editEmail };
+      const payload: any = {
+        username: editUsername,
+        email: editEmail,
+        password: currentPassword,
+      };
       if (newPassword) payload.newPassword = newPassword;
 
       const updated = await updateProfile(payload);
@@ -169,6 +181,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
     }
   };
 
+  // Logout
   const handleLogout = async () => {
     await AsyncStorage.removeItem("token");
     await AsyncStorage.removeItem("userId");
@@ -223,8 +236,75 @@ export const TodoScreen = ({ onLogout }: Props) => {
         />
       )}
 
-      {/* Profile & Edit Modals */}
-      {/* Keep your existing modal components here */}
+      {/* Profile Modal */}
+      <Modal visible={isProfileModalVisible} animationType="slide" transparent>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editUsername}
+              onChangeText={setEditUsername}
+              placeholder="Username"
+            />
+            <TextInput
+              style={styles.modalInput}
+              value={editEmail}
+              onChangeText={setEditEmail}
+              placeholder="Email"
+              keyboardType="email-address"
+            />
+            <TextInput
+              style={styles.modalInput}
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              placeholder="Current Password"
+              secureTextEntry
+            />
+            <TextInput
+              style={styles.modalInput}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="New Password"
+              secureTextEntry
+            />
+            <Button
+              title={isUpdatingUser ? "Updating..." : "Save Changes"}
+              onPress={handleUpdateProfile}
+              disabled={isUpdatingUser}
+            />
+            <Button title="Logout" onPress={handleLogout} color="#dc3545" />
+            <Button
+              title="Cancel"
+              onPress={() => setProfileModalVisible(false)}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Todo Edit Modal */}
+      <Modal visible={isEditModalVisible} animationType="slide" transparent>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Task</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editTitle}
+              onChangeText={setEditTitle}
+              placeholder="Title"
+            />
+            <TextInput
+              style={styles.modalInput}
+              value={editDescription}
+              onChangeText={setEditDescription}
+              placeholder="Description"
+            />
+            {/* Could add DatePicker here if needed */}
+            <Button title="Save" onPress={handleSaveEdit} />
+            <Button title="Cancel" onPress={() => setEditModalVisible(false)} />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -249,5 +329,25 @@ const styles = StyleSheet.create({
     marginTop: 40,
     color: "#aaa",
     fontSize: 16,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  modalContent: {
+    width: "90%",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 20,
+  },
+  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 10 },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
   },
 });
