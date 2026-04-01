@@ -13,31 +13,34 @@ export const BASE_URL = rawBaseUrl.endsWith("/")
 
 console.log("✅ BASE_URL:", BASE_URL);
 
+// Helper: wait for token to exist
+const waitForToken = async (): Promise<string> => {
+  let token = await AsyncStorage.getItem("token");
+
+  while (!token) {
+    console.log("⏳ Waiting for token to be available...");
+    await new Promise((res) => setTimeout(res, 100));
+    token = await AsyncStorage.getItem("token");
+  }
+
+  return token;
+};
+
 // Core API request function
 const apiRequest = async (path: string, options: RequestInit = {}) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes
 
   try {
-    // 🔥 Retry token (for timing issues on APK)
-    let token = await AsyncStorage.getItem("token");
-
-    if (!token) {
-      await new Promise((res) => setTimeout(res, 200));
-      token = await AsyncStorage.getItem("token");
-    }
+    // 🔥 Ensure token exists before sending request
+    const token = await waitForToken();
 
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
+      Authorization: `Bearer ${token}`,
     };
-
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    } else {
-      console.warn("⚠️ No token found for request:", path);
-    }
 
     const cleanPath = path.startsWith("/") ? path.slice(1) : path;
     const fullUrl = `${BASE_URL}/${cleanPath}`;
