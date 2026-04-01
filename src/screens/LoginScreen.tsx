@@ -24,6 +24,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isWakingUp, setIsWakingUp] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState(60);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fadeAnim = useState(new Animated.Value(0))[0]; // fade-in animation
 
@@ -52,8 +53,13 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
     setIsWakingUp(false);
 
     // Show the floating wake-up card if backend takes >1.5s
+    let countdownInterval: any;
     const wakeUpTimer = setTimeout(() => {
       setIsWakingUp(true);
+      setSecondsRemaining(60);
+      countdownInterval = setInterval(() => {
+        setSecondsRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 300,
@@ -76,6 +82,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       setErrorMsg(msg);
     } finally {
       clearTimeout(wakeUpTimer);
+      if (countdownInterval) clearInterval(countdownInterval);
       setIsWakingUp(false);
       fadeAnim.setValue(0);
       setLoading(false);
@@ -88,6 +95,11 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       {isWakingUp && (
         <Animated.View style={[styles.wakeCard, { opacity: fadeAnim }]}>
           <Text style={styles.wakeText}>Waking up backend server...</Text>
+          <Text style={{ color: "#fff", fontSize: 12, marginTop: 4 }}>
+            {secondsRemaining > 0
+              ? `Usually takes ~${secondsRemaining}s`
+              : "Almost there! Still connecting..."}
+          </Text>
         </Animated.View>
       )}
 
