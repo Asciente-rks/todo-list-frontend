@@ -32,6 +32,16 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
     apiClient.get("").catch(() => {});
   }, []);
 
+  const handleUsernameChange = (text: string) => {
+    setUsername(text);
+    if (errorMsg) setErrorMsg(null);
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setPassword(text);
+    if (errorMsg) setErrorMsg(null);
+  };
+
   const handleLogin = async () => {
     if (!username || !password) {
       return Alert.alert("Error", "Please fill in all fields");
@@ -62,7 +72,12 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       // ✅ Success
       onAuthSuccess();
     } catch (err: any) {
-      const msg = err.message || "Something went wrong";
+      // Try to get specific error from backend, otherwise fallback to default
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Invalid username or password";
       setErrorMsg(msg);
     } finally {
       clearTimeout(wakeUpTimer);
@@ -88,7 +103,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
         placeholder="Username"
         placeholderTextColor="#6c757d"
         value={username}
-        onChangeText={setUsername}
+        onChangeText={handleUsernameChange}
         autoCapitalize="none"
       />
       <TextInput
@@ -96,7 +111,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
         placeholder="Password"
         placeholderTextColor="#6c757d"
         value={password}
-        onChangeText={setPassword}
+        onChangeText={handlePasswordChange}
         secureTextEntry
       />
 
