@@ -1,16 +1,12 @@
 // src/api/client.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 
-// 🚨 FORCE env usage
-const rawBaseUrl = process.env.EXPO_PUBLIC_API_URL_PLAIN?.trim();
+// 🚨 Safe BASE_URL: fallback ensures app won't crash
+const rawBaseUrl =
+  (Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL_PLAIN || "").trim() ||
+  "https://todo-list-backend-4li8.onrender.com/api"; // fallback if missing
 
-if (!rawBaseUrl) {
-  throw new Error(
-    "❌ EXPO_PUBLIC_API_URL is not defined. Check eas.json env config.",
-  );
-}
-
-// Ensure no trailing slash
 export const BASE_URL = rawBaseUrl.endsWith("/")
   ? rawBaseUrl.slice(0, -1)
   : rawBaseUrl;
@@ -23,7 +19,7 @@ const apiRequest = async (path: string, options: RequestInit = {}) => {
   const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
-    // 🔥 CRITICAL FIX: retry token (APK timing issue)
+    // 🔥 Retry token (for timing issues on APK)
     let token = await AsyncStorage.getItem("token");
 
     if (!token) {
@@ -43,7 +39,6 @@ const apiRequest = async (path: string, options: RequestInit = {}) => {
       console.warn("⚠️ No token found for request:", path);
     }
 
-    // Clean URL
     const cleanPath = path.startsWith("/") ? path.slice(1) : path;
     const fullUrl = `${BASE_URL}/${cleanPath}`;
 
@@ -93,25 +88,12 @@ const apiRequest = async (path: string, options: RequestInit = {}) => {
 // API wrapper
 export const apiClient = {
   get: (path: string) => apiRequest(path, { method: "GET" }),
-
   post: (path: string, body: any) =>
-    apiRequest(path, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-
+    apiRequest(path, { method: "POST", body: JSON.stringify(body) }),
   put: (path: string, body: any) =>
-    apiRequest(path, {
-      method: "PUT",
-      body: JSON.stringify(body),
-    }),
-
+    apiRequest(path, { method: "PUT", body: JSON.stringify(body) }),
   patch: (path: string, body: any) =>
-    apiRequest(path, {
-      method: "PATCH",
-      body: JSON.stringify(body),
-    }),
-
+    apiRequest(path, { method: "PATCH", body: JSON.stringify(body) }),
   delete: (path: string) => apiRequest(path, { method: "DELETE" }),
 };
 

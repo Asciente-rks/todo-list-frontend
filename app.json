@@ -32,6 +32,7 @@
       "@react-native-community/datetimepicker"
     ],
     "extra": {
+      "EXPO_PUBLIC_API_URL_PLAIN": "https://todo-list-backend-4li8.onrender.com/api",
       "eas": {
         "projectId": "64c99027-1e5b-4869-9ba5-ff08d77c8258"
       }
