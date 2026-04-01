@@ -6,7 +6,10 @@ export const getTodos = async (): Promise<Todo[]> => {
 };
 
 export const createTodo = async (
-  newTodoData: Pick<Todo, "title" | "description" | "dueDate" | "completed">,
+  newTodoData: Omit<
+    Todo,
+    "dueDate" | "userId" | "createdAt" | "updatedAt" | "_id" | "id"
+  > & { dueDate: Date | null },
 ): Promise<Todo> => {
   const payload = {
     ...newTodoData,
@@ -20,15 +23,16 @@ export const createTodo = async (
 export const toggleTodoStatus = async (
   id: string,
   completed: boolean,
+  title: string,
 ): Promise<Todo> => {
-  return await apiClient.patch(`/todos/${id}`, { completed });
+  return await apiClient.patch(`/todos/${id}`, { completed, title });
 };
 
 export const updateTodo = async (
   id: string,
   updatedFields: Partial<
-    Omit<Todo, "userId" | "_id" | "id" | "createdAt" | "updatedAt">
-  >,
+    Omit<Todo, "userId" | "_id" | "id" | "createdAt" | "updatedAt" | "dueDate">
+  > & { dueDate?: Date | string | null },
 ): Promise<Todo> => {
   const payload = {
     ...updatedFields,

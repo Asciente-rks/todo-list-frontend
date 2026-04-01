@@ -10,14 +10,15 @@ import {
   LayoutAnimation,
   Modal,
   TextInput,
-  Button,
+  Pressable,
+  SafeAreaView,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Todo } from "../types/todo";
 import { TodoItem } from "../components/TodoItem";
 import { TodoInput } from "../components/TodoInput";
-import { UserCircle } from "lucide-react-native";
+import { UserCircle, Plus, Calendar, X } from "lucide-react-native";
 import {
   getTodos,
   createTodo,
@@ -26,6 +27,7 @@ import {
   updateTodo,
 } from "../api/todoService";
 import { getProfile, updateProfile, UserProfile } from "../api/userService";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 interface Props {
   onLogout: () => void;
@@ -36,11 +38,17 @@ export const TodoScreen = ({ onLogout }: Props) => {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
 
-  // Profile Modal
+  // Modals visibility
+  const [isAddModalVisible, setAddModalVisible] = useState(false);
   const [isProfileModalVisible, setProfileModalVisible] = useState(false);
+  const [isPassConfirmVisible, setPassConfirmVisible] = useState(false);
+  const [isChangePassVisible, setChangePassVisible] = useState(false);
+
+  // Profile data
   const [editUsername, setEditUsername] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
 
@@ -50,6 +58,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editDueDate, setEditDueDate] = useState<Date | null>(null);
+  const [showEditDatePicker, setShowEditDatePicker] = useState(false);
 
   // Fetch todos and user profile
   const fetchData = async () => {
@@ -84,6 +93,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
         completed: false,
       });
       setTodos([...todos, newTodo]);
+      setAddModalVisible(false);
     } catch {
       Alert.alert("Error", "Could not add task");
     }
@@ -95,7 +105,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
     if (!id) return;
 
     try {
-      const updated = await toggleTodoStatus(id, !todo.completed);
+      const updated = await toggleTodoStatus(id, !todo.completed, todo.title);
       setTodos(todos.map((t) => ((t._id || t.id) === id ? updated : t)));
     } catch {
       Alert.alert("Error", "Could not update status");
@@ -122,6 +132,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
     setEditTitle(todo.title);
     setEditDescription(todo.description || "");
     setEditDueDate(todo.dueDate ? new Date(todo.dueDate) : null);
+    setShowEditDatePicker(false);
     setEditModalVisible(true);
   };
 
@@ -181,6 +192,29 @@ export const TodoScreen = ({ onLogout }: Props) => {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (
+      !currentPassword ||
+      !newPassword ||
+      newPassword !== confirmNewPassword
+    ) {
+      return Alert.alert("Error", "Passwords must match and cannot be empty");
+    }
+    setIsUpdatingUser(true);
+    try {
+      await updateProfile({ password: currentPassword, newPassword });
+      setChangePassVisible(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      Alert.alert("Success", "Password changed successfully");
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to change password");
+    } finally {
+      setIsUpdatingUser(false);
+    }
+  };
+
   // Logout
   const handleLogout = async () => {
     await AsyncStorage.removeItem("token");
@@ -194,19 +228,25 @@ export const TodoScreen = ({ onLogout }: Props) => {
   }, []);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
 
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.header}>My Tasks</Text>
         <TouchableOpacity onPress={handleOpenProfile}>
-          <UserCircle color="#007bff" size={32} />
+          <UserCircle color="#007AFF" size={32} />
         </TouchableOpacity>
       </View>
 
-      {/* Todo Input */}
-      <TodoInput onAdd={handleAddTodo} />
+      {/* Add Task Button */}
+      <TouchableOpacity
+        style={styles.addTaskButton}
+        onPress={() => setAddModalVisible(true)}
+      >
+        <Plus color="#fff" size={20} />
+        <Text style={styles.addTaskButtonText}>Add Task</Text>
+      </TouchableOpacity>
 
       {/* Todo List */}
       {loading ? (
@@ -236,91 +276,240 @@ export const TodoScreen = ({ onLogout }: Props) => {
         />
       )}
 
-      {/* Profile Modal */}
-      <Modal visible={isProfileModalVisible} animationType="slide" transparent>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
+      {/* Add Task Modal (Floating Center) */}
+      <Modal visible={isAddModalVisible} transparent animationType="fade">
+        <Pressable
+          style={styles.overlay}
+          onPress={() => setAddModalVisible(false)}
+        >
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>New Task</Text>
+              <TouchableOpacity onPress={() => setAddModalVisible(false)}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+            <TodoInput onAdd={handleAddTodo} />
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Edit Profile Modal (Floating Center) */}
+      <Modal visible={isProfileModalVisible} transparent animationType="fade">
+        <Pressable
+          style={styles.overlay}
+          onPress={() => setProfileModalVisible(false)}
+        >
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Profile Settings</Text>
+              <TouchableOpacity onPress={() => setProfileModalVisible(false)}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Username</Text>
+              <TextInput
+                style={styles.iosInput}
+                value={editUsername}
+                onChangeText={setEditUsername}
+              />
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.iosInput}
+                value={editEmail}
+                onChangeText={setEditEmail}
+                keyboardType="email-address"
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={() => setPassConfirmVisible(true)}
+            >
+              <Text style={styles.primaryButtonText}>Save Changes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => setChangePassVisible(true)}
+            >
+              <Text style={styles.secondaryButtonText}>Change Password</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleLogout}
+            >
+              <Text style={[styles.secondaryButtonText, { color: "#FF3B30" }]}>
+                Logout
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Password Confirmation Modal */}
+      <Modal visible={isPassConfirmVisible} transparent animationType="fade">
+        <View style={styles.overlayCenter}>
+          <View style={styles.alertBox}>
+            <Text style={styles.alertTitle}>Confirm Changes</Text>
+            <Text style={styles.alertSub}>Enter current password to save.</Text>
             <TextInput
-              style={styles.modalInput}
-              value={editUsername}
-              onChangeText={setEditUsername}
-              placeholder="Username"
-            />
-            <TextInput
-              style={styles.modalInput}
-              value={editEmail}
-              onChangeText={setEditEmail}
-              placeholder="Email"
-              keyboardType="email-address"
-            />
-            <TextInput
-              style={styles.modalInput}
+              style={styles.iosInput}
+              secureTextEntry
+              placeholder="Password"
               value={currentPassword}
               onChangeText={setCurrentPassword}
-              placeholder="Current Password"
-              secureTextEntry
             />
-            <TextInput
-              style={styles.modalInput}
-              value={newPassword}
-              onChangeText={setNewPassword}
-              placeholder="New Password"
-              secureTextEntry
-            />
-            <Button
-              title={isUpdatingUser ? "Updating..." : "Save Changes"}
-              onPress={handleUpdateProfile}
-              disabled={isUpdatingUser}
-            />
-            <Button title="Logout" onPress={handleLogout} color="#dc3545" />
-            <Button
-              title="Cancel"
-              onPress={() => setProfileModalVisible(false)}
-            />
+            <View style={styles.alertButtons}>
+              <TouchableOpacity
+                style={styles.alertBtn}
+                onPress={() => {
+                  setPassConfirmVisible(false);
+                  setCurrentPassword("");
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.alertBtn}
+                onPress={handleUpdateProfile}
+              >
+                <Text style={styles.confirmText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
 
-      {/* Todo Edit Modal */}
-      <Modal visible={isEditModalVisible} animationType="slide" transparent>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Edit Task</Text>
+      {/* Change Password Modal */}
+      <Modal visible={isChangePassVisible} transparent animationType="fade">
+        <View style={styles.overlayCenter}>
+          <View style={styles.alertBox}>
+            <Text style={styles.alertTitle}>Change Password</Text>
             <TextInput
-              style={styles.modalInput}
-              value={editTitle}
-              onChangeText={setEditTitle}
-              placeholder="Title"
+              style={styles.iosInput}
+              secureTextEntry
+              placeholder="Current Password"
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
             />
             <TextInput
-              style={styles.modalInput}
-              value={editDescription}
-              onChangeText={setEditDescription}
-              placeholder="Description"
+              style={styles.iosInput}
+              secureTextEntry
+              placeholder="New Password"
+              value={newPassword}
+              onChangeText={setNewPassword}
             />
-            {/* Could add DatePicker here if needed */}
-            <Button title="Save" onPress={handleSaveEdit} />
-            <Button title="Cancel" onPress={() => setEditModalVisible(false)} />
+            <TextInput
+              style={styles.iosInput}
+              secureTextEntry
+              placeholder="Confirm New Password"
+              value={confirmNewPassword}
+              onChangeText={setConfirmNewPassword}
+            />
+            <View style={styles.alertButtons}>
+              <TouchableOpacity
+                style={styles.alertBtn}
+                onPress={() => {
+                  setChangePassVisible(false);
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmNewPassword("");
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.alertBtn}
+                onPress={handleChangePassword}
+              >
+                <Text style={styles.confirmText}>Update</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
-    </View>
+
+      {/* Edit Todo Modal (Floating Center) */}
+      <Modal visible={isEditModalVisible} transparent animationType="fade">
+        <Pressable
+          style={styles.overlay}
+          onPress={() => setEditModalVisible(false)}
+        >
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Task</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Title</Text>
+              <TextInput
+                style={styles.iosInput}
+                value={editTitle}
+                onChangeText={setEditTitle}
+              />
+              <Text style={styles.label}>Description</Text>
+              <TextInput
+                style={[styles.iosInput, { height: 80 }]}
+                value={editDescription}
+                onChangeText={setEditDescription}
+                multiline
+              />
+              <Text style={styles.label}>Due Date</Text>
+              <TouchableOpacity
+                style={styles.iosDateBtn}
+                onPress={() => setShowEditDatePicker(true)}
+              >
+                <Calendar size={18} color="#007AFF" />
+                <Text style={styles.iosDateText}>
+                  {editDueDate
+                    ? editDueDate.toLocaleDateString()
+                    : "No date set"}
+                </Text>
+              </TouchableOpacity>
+              {showEditDatePicker && (
+                <DateTimePicker
+                  value={editDueDate || new Date()}
+                  mode="date"
+                  display="spinner"
+                  onChange={(e, date) => {
+                    setShowEditDatePicker(false);
+                    if (date) setEditDueDate(date);
+                  }}
+                />
+              )}
+            </View>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleSaveEdit}
+            >
+              <Text style={styles.primaryButtonText}>Save Changes</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    backgroundColor: "#f0f2f5",
-  },
+  container: { flex: 1, paddingHorizontal: 20, backgroundColor: "#f0f2f5" },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 25,
+    marginTop: 20,
   },
   header: { fontSize: 30, fontWeight: "bold", color: "#212529" },
   listContent: { paddingBottom: 40 },
@@ -330,24 +519,106 @@ const styles = StyleSheet.create({
     color: "#aaa",
     fontSize: 16,
   },
-  modalContainer: {
+  overlay: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.4)",
   },
   modalContent: {
-    width: "90%",
+    width: "85%",
     backgroundColor: "#fff",
     borderRadius: 14,
     padding: 20,
   },
-  modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 10 },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: "#e9ecef",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
+  sheetContent: { flex: 1, padding: 20, backgroundColor: "#fff" },
+  sheetHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 25,
   },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 22, fontWeight: "600", color: "#333" },
+  cancelButtonText: { color: "#007AFF", fontSize: 17 },
+  addTaskButton: {
+    backgroundColor: "#007AFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  addTaskButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  iosInput: {
+    backgroundColor: "#F2F2F7",
+    padding: 12,
+    borderRadius: 10,
+    fontSize: 16,
+    marginBottom: 15,
+  },
+  label: { fontSize: 14, color: "#8E8E93", marginBottom: 5, fontWeight: "600" },
+  primaryButton: {
+    backgroundColor: "#007AFF",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  primaryButtonText: { color: "#fff", fontSize: 17, fontWeight: "600" },
+  secondaryButton: { padding: 16, alignItems: "center", marginTop: 10 },
+  secondaryButtonText: { color: "#007AFF", fontSize: 17, fontWeight: "500" },
+  overlayCenter: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  alertBox: {
+    width: 270,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 20,
+    alignItems: "stretch",
+  },
+  alertTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 5,
+  },
+  alertSub: {
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 15,
+    color: "#333",
+  },
+  alertButtons: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    borderTopWidth: 0.5,
+    borderColor: "#C6C6C8",
+    marginTop: 10,
+    paddingTop: 10,
+  },
+  alertBtn: { flex: 1, alignItems: "center" },
+  confirmText: { color: "#007AFF", fontSize: 17, fontWeight: "600" },
+  iosDateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F2F2F7",
+    padding: 10,
+    borderRadius: 10,
+    gap: 8,
+    marginBottom: 15,
+  },
+  iosDateText: { fontSize: 16, color: "#007AFF" },
+  formGroup: { marginBottom: 20 },
 });

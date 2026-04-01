@@ -77,7 +77,7 @@ export const TodoInput = ({ onAdd }: Props) => {
         <DateTimePicker
           value={dueDate || new Date()}
           mode="date"
-          display="default"
+          display="spinner"
           onChange={onDateChange}
         />
       )}
@@ -88,15 +88,10 @@ export const TodoInput = ({ onAdd }: Props) => {
 const styles = StyleSheet.create({
   inputContainer: {
     backgroundColor: "#ffffff",
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 20,
+    padding: 0,
+    borderRadius: 0,
+    marginBottom: 0,
     gap: 10,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
   },
   input: {
     borderWidth: 1,
@@ -115,12 +110,12 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   addButton: {
-    backgroundColor: "#007bff",
+    backgroundColor: "#007AFF",
     justifyContent: "center",
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 12,
     flex: 1,
-    height: 45,
+    height: 50,
     alignItems: "center",
   },
   disabledButton: {

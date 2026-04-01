@@ -24,6 +24,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isWakingUp, setIsWakingUp] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fadeAnim = useState(new Animated.Value(0))[0]; // fade-in animation
 
   // Optional: ping backend once on mount
@@ -36,6 +37,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       return Alert.alert("Error", "Please fill in all fields");
     }
 
+    setErrorMsg(null);
     setLoading(true);
     setIsWakingUp(false);
 
@@ -61,7 +63,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       onAuthSuccess();
     } catch (err: any) {
       const msg = err.message || "Something went wrong";
-      Alert.alert("Login Failed", msg);
+      setErrorMsg(msg);
     } finally {
       clearTimeout(wakeUpTimer);
       setIsWakingUp(false);
@@ -97,6 +99,8 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
         onChangeText={setPassword}
         secureTextEntry
       />
+
+      {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
       <TouchableOpacity
         style={[styles.button, loading ? { opacity: 0.7 } : {}]}
@@ -161,4 +165,10 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
   switchText: { marginTop: 20, color: "#007bff", textAlign: "center" },
+  errorText: {
+    color: "#dc3545",
+    textAlign: "center",
+    marginBottom: 10,
+    fontWeight: "500",
+  },
 });

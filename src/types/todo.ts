@@ -4,7 +4,7 @@ export interface Todo {
   title: string;
   completed: boolean;
   description?: string;
-  dueDate?: Date | null;
+  dueDate?: string | null;
   userId?: string; // optional for creation, backend will require it
   createdAt?: string;
   updatedAt?: string;
