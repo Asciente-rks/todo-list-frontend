@@ -25,9 +25,8 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isWakingUp, setIsWakingUp] = useState(false);
-  const fadeAnim = useState(new Animated.Value(0))[0]; // for fade-in card
+  const fadeAnim = useState(new Animated.Value(0))[0];
 
-  // Optional: wake backend on mount
   useEffect(() => {
     apiClient.get("").catch(() => {});
   }, []);
@@ -40,7 +39,6 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
     setLoading(true);
     setIsWakingUp(false);
 
-    // Show the floating wake-up card if backend takes >1.5s
     const wakeUpTimer = setTimeout(() => {
       setIsWakingUp(true);
       Animated.timing(fadeAnim, {
@@ -53,12 +51,10 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
     try {
       const data = await register(email, username, password);
 
-      // Save token and userId
       if (data.token) await AsyncStorage.setItem("token", data.token);
       const userId = data.user?._id || data.user?.id;
       if (userId) await AsyncStorage.setItem("userId", userId);
 
-      // ✅ Registration successful → log in
       onAuthSuccess();
     } catch (err: any) {
       const msg = err.message || "Something went wrong";
@@ -73,7 +69,6 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
 
   return (
     <View style={styles.container}>
-      {/* Floating Waking Up Card */}
       {isWakingUp && (
         <Animated.View style={[styles.wakeCard, { opacity: fadeAnim }]}>
           <Text style={styles.wakeText}>Waking up backend server...</Text>
@@ -143,11 +138,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
     alignItems: "center",
   },
-  wakeText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "500",
-  },
+  wakeText: { color: "#fff", fontSize: 16, fontWeight: "500" },
   title: {
     fontSize: 32,
     fontWeight: "bold",

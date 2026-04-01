@@ -1,43 +1,18 @@
+// App.tsx
 import React, { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TodoScreen } from "./src/screens/TodoScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { RegisterScreen } from "./src/screens/RegisterScreen";
-import { BASE_URL } from "./src/api/client";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [backendStatus, setBackendStatus] = useState<string>(
-    "Checking backend...",
-  );
 
   useEffect(() => {
-    // 🔹 Retry backend check for Render cold start
-    const checkBackend = async (retries = 5, delay = 3000) => {
-      for (let i = 0; i < retries; i++) {
-        try {
-          const res = await fetch(BASE_URL);
-          const data = await res.json();
-          setBackendStatus("Backend online ✅");
-          console.log("FETCH TEST SUCCESS:", data);
-          return true;
-        } catch (err: any) {
-          console.log(`FETCH TRY ${i + 1} FAILED:`, err.message);
-          setBackendStatus(`Backend waking up... attempt ${i + 1}`);
-          await new Promise((r) => setTimeout(r, delay));
-        }
-      }
-      setBackendStatus("Backend unreachable ❌");
-      return false;
-    };
-
-    // 🔹 Step 1: Check backend
-    checkBackend();
-
-    // 🔹 Step 2: Check auth token
+    // Check if user is already logged in
     const checkAuth = async () => {
       const token = await AsyncStorage.getItem("token");
       if (token) setIsAuthenticated(true);
@@ -45,7 +20,7 @@ export default function App() {
     checkAuth();
   }, []);
 
-  // 🔹 Show backend status while unauthenticated
+  // Render authentication screens
   if (!isAuthenticated) {
     if (isRegistering) {
       return (
@@ -56,16 +31,14 @@ export default function App() {
       );
     }
     return (
-      <View style={styles.container}>
-        <LoginScreen
-          onAuthSuccess={() => setIsAuthenticated(true)}
-          onSwitchToRegister={() => setIsRegistering(true)}
-        />
-        <Text style={styles.status}>{backendStatus}</Text>
-      </View>
+      <LoginScreen
+        onAuthSuccess={() => setIsAuthenticated(true)}
+        onSwitchToRegister={() => setIsRegistering(true)}
+      />
     );
   }
 
+  // Render main Todo screen when authenticated
   return (
     <>
       <StatusBar style="auto" />
@@ -76,5 +49,4 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  status: { textAlign: "center", padding: 10, color: "#555" },
 });

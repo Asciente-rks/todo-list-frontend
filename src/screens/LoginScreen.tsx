@@ -24,9 +24,9 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isWakingUp, setIsWakingUp] = useState(false);
-  const fadeAnim = useState(new Animated.Value(0))[0]; // for fade-in card
+  const fadeAnim = useState(new Animated.Value(0))[0]; // fade-in animation
 
-  // Optional: ping backend on mount to wake it up
+  // Optional: ping backend once on mount
   useEffect(() => {
     apiClient.get("").catch(() => {});
   }, []);
@@ -39,7 +39,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
     setLoading(true);
     setIsWakingUp(false);
 
-    // Show the "waking up" card if backend takes longer than 1.5s
+    // Show the floating wake-up card if backend takes >1.5s
     const wakeUpTimer = setTimeout(() => {
       setIsWakingUp(true);
       Animated.timing(fadeAnim, {
@@ -57,7 +57,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       const userId = data.user?._id || data.user?.id;
       if (userId) await AsyncStorage.setItem("userId", userId);
 
-      // ✅ Login successful
+      // ✅ Success
       onAuthSuccess();
     } catch (err: any) {
       const msg = err.message || "Something went wrong";
@@ -135,11 +135,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
     alignItems: "center",
   },
-  wakeText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "500",
-  },
+  wakeText: { color: "#fff", fontSize: 16, fontWeight: "500" },
   title: {
     fontSize: 32,
     fontWeight: "bold",
@@ -164,9 +160,5 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  switchText: {
-    marginTop: 20,
-    color: "#007bff",
-    textAlign: "center",
-  },
+  switchText: { marginTop: 20, color: "#007bff", textAlign: "center" },
 });
