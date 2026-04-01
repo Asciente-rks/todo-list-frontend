@@ -2,7 +2,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // 🚨 FORCE env usage
-const rawBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+const rawBaseUrl = process.env.EXPO_PUBLIC_API_URL_PLAIN?.trim();
 
 if (!rawBaseUrl) {
   throw new Error(
