@@ -72,12 +72,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
       // ✅ Success
       onAuthSuccess();
     } catch (err: any) {
-      // Try to get specific error from backend, otherwise fallback to default
-      const msg =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message ||
-        "Invalid username or password";
+      const msg = err.message || "Invalid username or password";
       setErrorMsg(msg);
     } finally {
       clearTimeout(wakeUpTimer);

@@ -60,22 +60,26 @@ const apiRequest = async (path: string, options: RequestInit = {}) => {
     }
 
     if (!res.ok) {
-      console.error("❌ API ERROR RESPONSE:", {
-        url: fullUrl,
-        status: res.status,
-        data,
-      });
-      throw new Error(data?.error || `HTTP ${res.status}`);
+      // Attach status so our retry wrapper knows if this is a validation error (400)
+      const error: any = new Error(
+        data?.error || data?.message || `HTTP ${res.status}`,
+      );
+      error.status = res.status;
+      throw error;
     }
 
     return data;
   } catch (err: any) {
     clearTimeout(timeoutId);
-    console.error("❌ FETCH FAILED:", {
-      path,
-      base: BASE_URL,
-      message: err.message,
-    });
+
+    // Only log as a "failure" if it's a network/timeout issue.
+    // 400/401 errors are normal validation and don't need a scary red log.
+    if (!err.status) {
+      console.error("❌ NETWORK FAILURE:", {
+        path,
+        message: err.message,
+      });
+    }
     throw err;
   }
 };

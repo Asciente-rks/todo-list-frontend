@@ -6,8 +6,14 @@ export const retryUntilSuccess = async <T>(
   while (true) {
     try {
       return await fn();
-    } catch (err) {
-      console.log("⏳ Request failed, retrying in", delay / 1000, "s");
+    } catch (err: any) {
+      // If it's a 4xx error, the server is awake but the user input is wrong.
+      // Stop retrying and let the user see the error!
+      if (err.status && err.status < 500) {
+        throw err;
+      }
+
+      console.log("⏳ Server waking up? Retrying in", delay / 1000, "s...");
       await new Promise((res) => setTimeout(res, delay));
     }
   }
