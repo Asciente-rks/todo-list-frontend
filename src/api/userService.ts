@@ -8,25 +8,23 @@ export interface UserProfile {
   email: string;
 }
 
-// Get currently logged-in user's profile
+// Get logged-in user's profile
 export const getProfile = async (): Promise<UserProfile> => {
   const userId = await AsyncStorage.getItem("userId");
   if (!userId) throw new Error("User ID not found in AsyncStorage");
-
   const response = await apiClient.get(`/users/${userId}`);
-  return response?.data || response;
+  return response;
 };
 
-// Update currently logged-in user's profile
-export const updateProfile = async (data: {
-  username?: string;
-  email?: string;
-  password?: string;
-  newPassword?: string;
-}): Promise<UserProfile> => {
+// Update logged-in user's profile
+export const updateProfile = async (
+  data: Partial<Pick<UserProfile, "username" | "email">> & {
+    newPassword?: string;
+    password?: string;
+  },
+): Promise<UserProfile> => {
   const userId = await AsyncStorage.getItem("userId");
   if (!userId) throw new Error("User ID not found in AsyncStorage");
-
   const response = await apiClient.patch(`/users/${userId}`, data);
-  return response?.data || response;
+  return response;
 };

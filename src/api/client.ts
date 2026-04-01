@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 
-// Safe BASE_URL fallback
+// Base URL safe fallback
 const rawBaseUrl =
   (Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL_PLAIN || "").trim() ||
   "https://todo-list-backend-4li8.onrender.com/api";
@@ -12,35 +12,34 @@ export const BASE_URL = rawBaseUrl.endsWith("/")
 
 console.log("✅ BASE_URL:", BASE_URL);
 
-// Wait for token to exist
-const waitForToken = async (): Promise<string> => {
-  let token = await AsyncStorage.getItem("token");
-  while (!token) {
-    console.log("⏳ Waiting for token to be available...");
-    await new Promise((res) => setTimeout(res, 100));
-    token = await AsyncStorage.getItem("token");
+// Helper: wait for token, but avoid infinite loop in build
+const getToken = async (): Promise<string | null> => {
+  try {
+    const token = await AsyncStorage.getItem("token");
+    return token;
+  } catch {
+    return null;
   }
-  return token;
 };
 
 // Core API request
 const apiRequest = async (path: string, options: RequestInit = {}) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000);
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout
 
   try {
-    const token = await waitForToken();
+    const token = await getToken();
 
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
-      Authorization: `Bearer ${token}`,
     };
+
+    if (token) headers["Authorization"] = `Bearer ${token}`;
 
     const cleanPath = path.startsWith("/") ? path.slice(1) : path;
     const fullUrl = `${BASE_URL}/${cleanPath}`;
-
     console.log("➡️ API CALL:", fullUrl);
 
     const res = await fetch(fullUrl, {
