@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { register } from "../api/authService";
@@ -24,6 +25,7 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isWakingUp, setIsWakingUp] = useState(false);
+  const fadeAnim = useState(new Animated.Value(0))[0]; // for fade-in card
 
   // Optional: wake backend on mount
   useEffect(() => {
@@ -38,61 +40,46 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
     setLoading(true);
     setIsWakingUp(false);
 
-    let attempts = 0;
-    const MAX_RETRIES = 10; // Retry ~20s if backend asleep
-    const wakeUpTimer = setTimeout(() => setIsWakingUp(true), 3000);
+    // Show the floating wake-up card if backend takes >1.5s
+    const wakeUpTimer = setTimeout(() => {
+      setIsWakingUp(true);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }, 1500);
 
     try {
-      while (attempts < MAX_RETRIES) {
-        try {
-          console.log(`🔁 Register attempt #${attempts + 1}`);
+      const data = await register(email, username, password);
 
-          // Order matches authService: email, username, password
-          const data = await register(email, username, password);
+      // Save token and userId
+      if (data.token) await AsyncStorage.setItem("token", data.token);
+      const userId = data.user?._id || data.user?.id;
+      if (userId) await AsyncStorage.setItem("userId", userId);
 
-          // Save token and userId if backend returns it
-          if (data.token) await AsyncStorage.setItem("token", data.token);
-          const userId = data.user?._id || data.user?.id;
-          if (userId) await AsyncStorage.setItem("userId", userId);
-
-          // ✅ Success: automatically log in the user
-          onAuthSuccess();
-          return;
-        } catch (err: any) {
-          const msg = err.message || "";
-
-          console.log("Register attempt failed:", msg);
-
-          // Stop retrying on real validation error
-          if (
-            msg.toLowerCase().includes("already") ||
-            msg.toLowerCase().includes("invalid") ||
-            msg.toLowerCase().includes("400")
-          ) {
-            throw err;
-          }
-
-          // Retry after 2s if backend sleeping
-          await new Promise((res) => setTimeout(res, 2000));
-          attempts++;
-        }
-      }
-
-      throw new Error("Server is taking too long to respond. Try again.");
-    } catch (error: any) {
-      Alert.alert(
-        "Registration Failed",
-        error.message || "Something went wrong",
-      );
+      // ✅ Registration successful → log in
+      onAuthSuccess();
+    } catch (err: any) {
+      const msg = err.message || "Something went wrong";
+      Alert.alert("Registration Failed", msg);
     } finally {
       clearTimeout(wakeUpTimer);
       setIsWakingUp(false);
+      fadeAnim.setValue(0);
       setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
+      {/* Floating Waking Up Card */}
+      {isWakingUp && (
+        <Animated.View style={[styles.wakeCard, { opacity: fadeAnim }]}>
+          <Text style={styles.wakeText}>Waking up backend server...</Text>
+        </Animated.View>
+      )}
+
       <Text style={styles.title}>Create Account</Text>
 
       <TextInput
@@ -119,12 +106,8 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
         secureTextEntry
       />
 
-      {loading && isWakingUp && (
-        <Text style={styles.wakeText}>Waking up backend server...</Text>
-      )}
-
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, loading ? { opacity: 0.7 } : {}]}
         onPress={handleRegister}
         disabled={loading}
       >
@@ -149,6 +132,22 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "#f8f9fa",
   },
+  wakeCard: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    padding: 15,
+    borderRadius: 10,
+    zIndex: 10,
+    alignItems: "center",
+  },
+  wakeText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "500",
+  },
   title: {
     fontSize: 32,
     fontWeight: "bold",
@@ -164,11 +163,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
     borderColor: "#ddd",
-  },
-  wakeText: {
-    textAlign: "center",
-    marginBottom: 10,
-    color: "#555",
   },
   button: {
     backgroundColor: "#28a745",

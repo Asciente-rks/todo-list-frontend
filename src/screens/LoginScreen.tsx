@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { login } from "../api/authService";
@@ -23,6 +24,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [isWakingUp, setIsWakingUp] = useState(false);
+  const fadeAnim = useState(new Animated.Value(0))[0]; // for fade-in card
 
   // Optional: ping backend on mount to wake it up
   useEffect(() => {
@@ -37,56 +39,46 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
     setLoading(true);
     setIsWakingUp(false);
 
-    let attempts = 0;
-    const MAX_RETRIES = 10; // 10 retries, ~20s total
-    const wakeUpTimer = setTimeout(() => setIsWakingUp(true), 3000);
+    // Show the "waking up" card if backend takes longer than 1.5s
+    const wakeUpTimer = setTimeout(() => {
+      setIsWakingUp(true);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }, 1500);
 
     try {
-      while (attempts < MAX_RETRIES) {
-        try {
-          console.log(`🔁 Login attempt #${attempts + 1}`);
+      const data = await login(username, password);
 
-          const data = await login(username, password);
+      // Save token and userId
+      if (data.token) await AsyncStorage.setItem("token", data.token);
+      const userId = data.user?._id || data.user?.id;
+      if (userId) await AsyncStorage.setItem("userId", userId);
 
-          // Save token and userId (redundant but safe)
-          if (data.token) await AsyncStorage.setItem("token", data.token);
-          const userId = data.user?._id || data.user?.id;
-          if (userId) await AsyncStorage.setItem("userId", userId);
-
-          // ✅ Success
-          onAuthSuccess();
-          return;
-        } catch (err: any) {
-          const msg = err.message || "";
-
-          console.log("Login attempt failed:", msg);
-
-          // ❌ Stop retrying on real auth error
-          if (
-            msg.toLowerCase().includes("invalid") ||
-            msg.toLowerCase().includes("401")
-          ) {
-            throw err;
-          }
-
-          // ⏳ Backend sleeping → retry after 2s
-          await new Promise((res) => setTimeout(res, 2000));
-          attempts++;
-        }
-      }
-
-      throw new Error("Server is taking too long to respond. Try again.");
-    } catch (error: any) {
-      Alert.alert("Login Failed", error.message || "Something went wrong");
+      // ✅ Login successful
+      onAuthSuccess();
+    } catch (err: any) {
+      const msg = err.message || "Something went wrong";
+      Alert.alert("Login Failed", msg);
     } finally {
       clearTimeout(wakeUpTimer);
       setIsWakingUp(false);
+      fadeAnim.setValue(0);
       setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
+      {/* Floating Waking Up Card */}
+      {isWakingUp && (
+        <Animated.View style={[styles.wakeCard, { opacity: fadeAnim }]}>
+          <Text style={styles.wakeText}>Waking up backend server...</Text>
+        </Animated.View>
+      )}
+
       <Text style={styles.title}>Welcome Back</Text>
 
       <TextInput
@@ -106,12 +98,8 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
         secureTextEntry
       />
 
-      {loading && isWakingUp && (
-        <Text style={styles.wakeText}>Waking up backend server...</Text>
-      )}
-
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, loading ? { opacity: 0.7 } : {}]}
         onPress={handleLogin}
         disabled={loading}
       >
@@ -136,6 +124,22 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "#f8f9fa",
   },
+  wakeCard: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    padding: 15,
+    borderRadius: 10,
+    zIndex: 10,
+    alignItems: "center",
+  },
+  wakeText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "500",
+  },
   title: {
     fontSize: 32,
     fontWeight: "bold",
@@ -151,11 +155,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
     borderColor: "#ddd",
-  },
-  wakeText: {
-    textAlign: "center",
-    marginBottom: 10,
-    color: "#555",
   },
   button: {
     backgroundColor: "#007bff",
