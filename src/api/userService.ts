@@ -19,8 +19,8 @@ export const getProfile = async (): Promise<UserProfile> => {
 // Update logged-in user's profile
 export const updateProfile = async (
   data: Partial<Pick<UserProfile, "username" | "email">> & {
-    newPassword?: string;
     password?: string;
+    currentPassword?: string;
   },
 ): Promise<UserProfile> => {
   const userId = await AsyncStorage.getItem("userId");

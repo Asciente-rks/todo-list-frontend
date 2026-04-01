@@ -161,29 +161,35 @@ export const TodoScreen = ({ onLogout }: Props) => {
     setEditUsername(user.username);
     setEditEmail(user.email);
     setNewPassword("");
+    setConfirmNewPassword("");
     setCurrentPassword("");
     setProfileModalVisible(true);
   };
 
   const handleUpdateProfile = async () => {
-    if (!currentPassword) {
+    const trimmedCurrent = currentPassword.trim();
+    if (!trimmedCurrent) {
       return Alert.alert(
         "Required",
         "Please enter your current password to save changes.",
       );
     }
+
+    if (isUpdatingUser) return;
+
     setIsUpdatingUser(true);
     try {
-      const payload: any = {
+      const payload = {
         username: editUsername,
         email: editEmail,
-        password: currentPassword,
+        currentPassword: trimmedCurrent,
       };
-      if (newPassword) payload.newPassword = newPassword;
 
       const updated = await updateProfile(payload);
       setUser(updated);
+      setPassConfirmVisible(false);
       setProfileModalVisible(false);
+      setCurrentPassword("");
       Alert.alert("Success", "Profile updated successfully");
     } catch (error: any) {
       Alert.alert("Update Failed", error.message || "Check your input");
@@ -193,16 +199,24 @@ export const TodoScreen = ({ onLogout }: Props) => {
   };
 
   const handleChangePassword = async () => {
+    const trimmedCurrent = currentPassword.trim();
+    const trimmedNew = newPassword.trim();
+
     if (
-      !currentPassword ||
-      !newPassword ||
-      newPassword !== confirmNewPassword
+      !trimmedCurrent ||
+      !trimmedNew ||
+      trimmedNew !== confirmNewPassword.trim()
     ) {
       return Alert.alert("Error", "Passwords must match and cannot be empty");
     }
+    if (isUpdatingUser) return;
+
     setIsUpdatingUser(true);
     try {
-      await updateProfile({ password: currentPassword, newPassword });
+      await updateProfile({
+        currentPassword: trimmedCurrent,
+        password: trimmedNew,
+      });
       setChangePassVisible(false);
       setCurrentPassword("");
       setNewPassword("");
@@ -376,10 +390,15 @@ export const TodoScreen = ({ onLogout }: Props) => {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.alertBtn}
+                style={[styles.alertBtn, isUpdatingUser && { opacity: 0.5 }]}
                 onPress={handleUpdateProfile}
+                disabled={isUpdatingUser}
               >
-                <Text style={styles.confirmText}>Confirm</Text>
+                {isUpdatingUser ? (
+                  <ActivityIndicator size="small" color="#007AFF" />
+                ) : (
+                  <Text style={styles.confirmText}>Confirm</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -425,10 +444,15 @@ export const TodoScreen = ({ onLogout }: Props) => {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.alertBtn}
+                style={[styles.alertBtn, isUpdatingUser && { opacity: 0.5 }]}
                 onPress={handleChangePassword}
+                disabled={isUpdatingUser}
               >
-                <Text style={styles.confirmText}>Update</Text>
+                {isUpdatingUser ? (
+                  <ActivityIndicator size="small" color="#007AFF" />
+                ) : (
+                  <Text style={styles.confirmText}>Update</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
