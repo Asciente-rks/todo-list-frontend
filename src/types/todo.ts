@@ -3,9 +3,9 @@ export interface Todo {
   id?: string;
   title: string;
   completed: boolean;
-  description?: string; // Make optional
-  dueDate?: Date | null; // Make optional and allow null
-  userId: string; // Assuming this is part of your Todo structure
-  createdAt: string;
-  updatedAt: string;
+  description?: string;
+  dueDate?: Date | null;
+  userId?: string; // optional for creation, backend will require it
+  createdAt?: string;
+  updatedAt?: string;
 }

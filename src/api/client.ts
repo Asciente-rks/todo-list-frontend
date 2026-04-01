@@ -1,38 +1,53 @@
 // src/api/client.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Base URL (use env for build)
-const rawBaseUrl =
-  process.env.EXPO_PUBLIC_API_URL?.trim() ||
-  "https://todo-list-backend-4li8.onrender.com/api";
-// Ensure it does not end with a slash to prevent double slashes in requests
+// 🚨 FORCE env usage
+const rawBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+
+if (!rawBaseUrl) {
+  throw new Error(
+    "❌ EXPO_PUBLIC_API_URL is not defined. Check eas.json env config.",
+  );
+}
+
+// Ensure no trailing slash
 export const BASE_URL = rawBaseUrl.endsWith("/")
   ? rawBaseUrl.slice(0, -1)
   : rawBaseUrl;
 
-// Debug
-console.log("BASE_URL:", BASE_URL);
+console.log("✅ BASE_URL:", BASE_URL);
 
 // Core API request function
 const apiRequest = async (path: string, options: RequestInit = {}) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
-    const token = await AsyncStorage.getItem("token");
+    // 🔥 CRITICAL FIX: retry token (APK timing issue)
+    let token = await AsyncStorage.getItem("token");
+
+    if (!token) {
+      await new Promise((res) => setTimeout(res, 200));
+      token = await AsyncStorage.getItem("token");
+    }
 
     const headers: Record<string, string> = {
-      "Content-Type": "application/json",
       Accept: "application/json",
+      "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
     };
 
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    } else {
+      console.warn("⚠️ No token found for request:", path);
+    }
 
-    // 🔹 Ensure exactly one slash between BASE_URL and path
-    const fullUrl = path
-      ? `${BASE_URL}/${path.startsWith("/") ? path.slice(1) : path}`
-      : BASE_URL;
+    // Clean URL
+    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+    const fullUrl = `${BASE_URL}/${cleanPath}`;
+
+    console.log("➡️ API CALL:", fullUrl);
 
     const res = await fetch(fullUrl, {
       ...options,
@@ -42,28 +57,61 @@ const apiRequest = async (path: string, options: RequestInit = {}) => {
 
     clearTimeout(timeoutId);
 
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP ${res.status}`);
+    const text = await res.text();
+    let data;
+
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { raw: text };
     }
 
-    return await res.json();
+    if (!res.ok) {
+      console.error("❌ API ERROR RESPONSE:", {
+        url: fullUrl,
+        status: res.status,
+        data,
+      });
+
+      throw new Error(data?.error || `HTTP ${res.status}`);
+    }
+
+    return data;
   } catch (err: any) {
     clearTimeout(timeoutId);
-    console.error(`[API ERROR] ${path} (Target: ${BASE_URL}):`, err.message);
+
+    console.error("❌ FETCH FAILED:", {
+      path,
+      base: BASE_URL,
+      message: err.message,
+    });
+
     throw err;
   }
 };
 
-// Generic API client
+// API wrapper
 export const apiClient = {
   get: (path: string) => apiRequest(path, { method: "GET" }),
+
   post: (path: string, body: any) =>
-    apiRequest(path, { method: "POST", body: JSON.stringify(body) }),
+    apiRequest(path, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
   put: (path: string, body: any) =>
-    apiRequest(path, { method: "PUT", body: JSON.stringify(body) }),
+    apiRequest(path, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
   patch: (path: string, body: any) =>
-    apiRequest(path, { method: "PATCH", body: JSON.stringify(body) }),
+    apiRequest(path, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
   delete: (path: string) => apiRequest(path, { method: "DELETE" }),
 };
 

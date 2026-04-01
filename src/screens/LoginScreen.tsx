@@ -1,3 +1,4 @@
+// src/screens/LoginScreen.tsx
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -23,40 +24,60 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
   const [loading, setLoading] = useState(false);
   const [isWakingUp, setIsWakingUp] = useState(false);
 
+  // Optional: ping backend on mount to wake it up
   useEffect(() => {
-    // Wake up the backend by hitting the base API route
-    // We hit an empty string to hit exactly the baseURL (/api)
     apiClient.get("").catch(() => {});
-
-    // Sanity check for the built app
-    if (!process.env.EXPO_PUBLIC_API_URL) {
-      console.warn(
-        "API URL is undefined. Check your EAS Secrets or .env file.",
-      );
-    }
   }, []);
 
   const handleLogin = async () => {
-    if (!username || !password)
+    if (!username || !password) {
       return Alert.alert("Error", "Please fill in all fields");
+    }
 
     setLoading(true);
+    setIsWakingUp(false);
 
-    // Set a timer to show wake-up message if it takes longer than 3 seconds
+    let attempts = 0;
+    const MAX_RETRIES = 10; // 10 retries, ~20s total
     const wakeUpTimer = setTimeout(() => setIsWakingUp(true), 3000);
 
     try {
-      const data = await login(username, password);
-      await AsyncStorage.setItem("token", data.token);
-      const userId = data.user?._id || data.user?.id;
-      if (userId) {
-        await AsyncStorage.setItem("userId", userId);
+      while (attempts < MAX_RETRIES) {
+        try {
+          console.log(`🔁 Login attempt #${attempts + 1}`);
+
+          const data = await login(username, password);
+
+          // Save token and userId (redundant but safe)
+          if (data.token) await AsyncStorage.setItem("token", data.token);
+          const userId = data.user?._id || data.user?.id;
+          if (userId) await AsyncStorage.setItem("userId", userId);
+
+          // ✅ Success
+          onAuthSuccess();
+          return;
+        } catch (err: any) {
+          const msg = err.message || "";
+
+          console.log("Login attempt failed:", msg);
+
+          // ❌ Stop retrying on real auth error
+          if (
+            msg.toLowerCase().includes("invalid") ||
+            msg.toLowerCase().includes("401")
+          ) {
+            throw err;
+          }
+
+          // ⏳ Backend sleeping → retry after 2s
+          await new Promise((res) => setTimeout(res, 2000));
+          attempts++;
+        }
       }
-      onAuthSuccess();
+
+      throw new Error("Server is taking too long to respond. Try again.");
     } catch (error: any) {
-      // apiClient uses fetch, so we use the Error message thrown in client.ts
-      const errorMessage = error.message || "Invalid username or password";
-      Alert.alert("Login Failed", errorMessage);
+      Alert.alert("Login Failed", error.message || "Something went wrong");
     } finally {
       clearTimeout(wakeUpTimer);
       setIsWakingUp(false);
@@ -67,6 +88,7 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome Back</Text>
+
       <TextInput
         style={styles.input}
         placeholder="Username"
@@ -83,24 +105,23 @@ export const LoginScreen = ({ onAuthSuccess, onSwitchToRegister }: Props) => {
         onChangeText={setPassword}
         secureTextEntry
       />
+
+      {loading && isWakingUp && (
+        <Text style={styles.wakeText}>Waking up backend server...</Text>
+      )}
+
       <TouchableOpacity
         style={styles.button}
         onPress={handleLogin}
         disabled={loading}
       >
         {loading ? (
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <ActivityIndicator color="#fff" />
-            {isWakingUp && (
-              <Text style={{ color: "#fff", marginLeft: 10 }}>
-                Waking up server...
-              </Text>
-            )}
-          </View>
+          <ActivityIndicator color="#fff" />
         ) : (
           <Text style={styles.buttonText}>Login</Text>
         )}
       </TouchableOpacity>
+
       <TouchableOpacity onPress={onSwitchToRegister}>
         <Text style={styles.switchText}>Don't have an account? Register</Text>
       </TouchableOpacity>
@@ -130,6 +151,11 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
     borderColor: "#ddd",
+  },
+  wakeText: {
+    textAlign: "center",
+    marginBottom: 10,
+    color: "#555",
   },
   button: {
     backgroundColor: "#007bff",

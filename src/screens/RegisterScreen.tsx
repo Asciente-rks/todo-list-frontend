@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// src/screens/RegisterScreen.tsx
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { register } from "../api/authService";
+import apiClient from "../api/client";
 
 interface Props {
   onAuthSuccess: () => void;
@@ -21,24 +23,70 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isWakingUp, setIsWakingUp] = useState(false);
+
+  // Optional: wake backend on mount
+  useEffect(() => {
+    apiClient.get("").catch(() => {});
+  }, []);
 
   const handleRegister = async () => {
-    if (!email || !password || !username)
+    if (!username || !email || !password) {
       return Alert.alert("Error", "Please fill in all fields");
+    }
+
     setLoading(true);
+    setIsWakingUp(false);
+
+    let attempts = 0;
+    const MAX_RETRIES = 10; // Retry ~20s if backend asleep
+    const wakeUpTimer = setTimeout(() => setIsWakingUp(true), 3000);
+
     try {
-      // Fixed parameter order: email, username, password
-      await register(email, username, password);
-      Alert.alert(
-        "Registration Successful",
-        "Your account has been created. Please log in with your credentials.",
-        [{ text: "OK", onPress: onSwitchToLogin }],
-      );
+      while (attempts < MAX_RETRIES) {
+        try {
+          console.log(`🔁 Register attempt #${attempts + 1}`);
+
+          // Order matches authService: email, username, password
+          const data = await register(email, username, password);
+
+          // Save token and userId if backend returns it
+          if (data.token) await AsyncStorage.setItem("token", data.token);
+          const userId = data.user?._id || data.user?.id;
+          if (userId) await AsyncStorage.setItem("userId", userId);
+
+          // ✅ Success: automatically log in the user
+          onAuthSuccess();
+          return;
+        } catch (err: any) {
+          const msg = err.message || "";
+
+          console.log("Register attempt failed:", msg);
+
+          // Stop retrying on real validation error
+          if (
+            msg.toLowerCase().includes("already") ||
+            msg.toLowerCase().includes("invalid") ||
+            msg.toLowerCase().includes("400")
+          ) {
+            throw err;
+          }
+
+          // Retry after 2s if backend sleeping
+          await new Promise((res) => setTimeout(res, 2000));
+          attempts++;
+        }
+      }
+
+      throw new Error("Server is taking too long to respond. Try again.");
     } catch (error: any) {
-      // Use the error message directly since we are using fetch
-      const errorMessage = error.message || "Could not create account";
-      Alert.alert("Registration Failed", errorMessage);
+      Alert.alert(
+        "Registration Failed",
+        error.message || "Something went wrong",
+      );
     } finally {
+      clearTimeout(wakeUpTimer);
+      setIsWakingUp(false);
       setLoading(false);
     }
   };
@@ -46,6 +94,7 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Create Account</Text>
+
       <TextInput
         style={styles.input}
         placeholder="Username"
@@ -69,6 +118,11 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
         onChangeText={setPassword}
         secureTextEntry
       />
+
+      {loading && isWakingUp && (
+        <Text style={styles.wakeText}>Waking up backend server...</Text>
+      )}
+
       <TouchableOpacity
         style={styles.button}
         onPress={handleRegister}
@@ -80,6 +134,7 @@ export const RegisterScreen = ({ onAuthSuccess, onSwitchToLogin }: Props) => {
           <Text style={styles.buttonText}>Register</Text>
         )}
       </TouchableOpacity>
+
       <TouchableOpacity onPress={onSwitchToLogin}>
         <Text style={styles.switchText}>Already have an account? Login</Text>
       </TouchableOpacity>
@@ -109,6 +164,11 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
     borderColor: "#ddd",
+  },
+  wakeText: {
+    textAlign: "center",
+    marginBottom: 10,
+    color: "#555",
   },
   button: {
     backgroundColor: "#28a745",

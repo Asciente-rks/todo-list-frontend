@@ -9,15 +9,24 @@ export interface UserProfile {
   email: string;
 }
 
-// Fetch profile
-export const getProfile = async (userId: string): Promise<UserProfile> => {
+export const getProfile = async (): Promise<UserProfile> => {
+  const userId = await AsyncStorage.getItem("userId");
+
+  if (!userId) {
+    throw new Error("User ID not found");
+  }
+
   return await apiClient.get(`/users/${userId}`);
 };
 
-// Update profile
 export const updateProfile = async (
-  userId: string,
   data: Partial<UserProfile>,
 ): Promise<UserProfile> => {
+  const userId = await AsyncStorage.getItem("userId");
+
+  if (!userId) {
+    throw new Error("User ID not found");
+  }
+
   return await apiClient.patch(`/users/${userId}`, data);
 };

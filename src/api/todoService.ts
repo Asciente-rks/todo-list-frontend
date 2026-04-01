@@ -2,10 +2,13 @@
 import { apiClient } from "./client";
 import { Todo } from "../types/todo";
 
+// Get all todos for the logged-in user
 export const getTodos = async (): Promise<Todo[]> => {
-  return await apiClient.get("/todos/list");
+  const response = await apiClient.get("/todos/list");
+  return response.data; // Axios wraps the response in data
 };
 
+// Create a new todo
 export const createTodo = async (
   newTodoData: Pick<Todo, "title" | "description" | "dueDate" | "completed">,
 ): Promise<Todo> => {
@@ -15,40 +18,38 @@ export const createTodo = async (
       ? newTodoData.dueDate.toISOString().split("T")[0]
       : null,
   };
-  return await apiClient.post("/todos/create", payload);
+  const response = await apiClient.post("/todos/create", payload);
+  return response.data;
 };
 
+// Toggle the completed status
 export const toggleTodoStatus = async (
-  todo: Todo,
+  id: string,
   completed: boolean,
 ): Promise<Todo> => {
-  const id = todo._id || todo.id;
-  if (!id) throw new Error("Todo ID undefined");
-
-  return await apiClient.patch(`/todos/${id}`, {
-    completed,
-    title: todo.title,
-    description: todo.description,
-  });
+  const response = await apiClient.patch(`/todos/${id}`, { completed });
+  return response.data;
 };
 
+// Update a todo (title, description, dueDate)
 export const updateTodo = async (
   id: string,
-  updatedFields: Partial<Todo>,
+  updatedFields: Partial<
+    Omit<Todo, "id" | "_id" | "userId" | "createdAt" | "updatedAt">
+  >,
 ): Promise<Todo> => {
-  if (!id) throw new Error("Todo ID undefined");
-
   const payload = {
     ...updatedFields,
     dueDate:
       updatedFields.dueDate instanceof Date
         ? updatedFields.dueDate.toISOString().split("T")[0]
-        : updatedFields.dueDate,
+        : (updatedFields.dueDate ?? null),
   };
-  return await apiClient.patch(`/todos/${id}`, payload);
+  const response = await apiClient.patch(`/todos/${id}`, payload);
+  return response.data;
 };
 
+// Delete a todo
 export const deleteTodo = async (id: string): Promise<void> => {
-  if (!id) throw new Error("Todo ID undefined");
   await apiClient.delete(`/todos/${id}`);
 };
