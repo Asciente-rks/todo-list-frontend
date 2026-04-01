@@ -4,11 +4,9 @@ import { Todo } from "../types/todo";
 
 // Get all todos for the logged-in user
 export const getTodos = async (): Promise<Todo[]> => {
-  const response = await apiClient.get("/todos/list");
-  return response.data; // Axios wraps the response in data
+  return await apiClient.get("/todos/list");
 };
 
-// Create a new todo
 export const createTodo = async (
   newTodoData: Pick<Todo, "title" | "description" | "dueDate" | "completed">,
 ): Promise<Todo> => {
@@ -18,24 +16,20 @@ export const createTodo = async (
       ? newTodoData.dueDate.toISOString().split("T")[0]
       : null,
   };
-  const response = await apiClient.post("/todos/create", payload);
-  return response.data;
+  return await apiClient.post("/todos/create", payload);
 };
 
-// Toggle the completed status
 export const toggleTodoStatus = async (
   id: string,
   completed: boolean,
 ): Promise<Todo> => {
-  const response = await apiClient.patch(`/todos/${id}`, { completed });
-  return response.data;
+  return await apiClient.patch(`/todos/${id}`, { completed });
 };
 
-// Update a todo (title, description, dueDate)
 export const updateTodo = async (
   id: string,
   updatedFields: Partial<
-    Omit<Todo, "id" | "_id" | "userId" | "createdAt" | "updatedAt">
+    Omit<Todo, "userId" | "_id" | "id" | "createdAt" | "updatedAt">
   >,
 ): Promise<Todo> => {
   const payload = {
@@ -43,13 +37,11 @@ export const updateTodo = async (
     dueDate:
       updatedFields.dueDate instanceof Date
         ? updatedFields.dueDate.toISOString().split("T")[0]
-        : (updatedFields.dueDate ?? null),
+        : updatedFields.dueDate,
   };
-  const response = await apiClient.patch(`/todos/${id}`, payload);
-  return response.data;
+  return await apiClient.patch(`/todos/${id}`, payload);
 };
 
-// Delete a todo
 export const deleteTodo = async (id: string): Promise<void> => {
   await apiClient.delete(`/todos/${id}`);
 };

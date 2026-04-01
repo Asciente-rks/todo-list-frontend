@@ -1,3 +1,4 @@
+// src/screens/TodoScreen.tsx
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -8,12 +9,9 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   LayoutAnimation,
-  Modal,
-  TextInput,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   getTodos,
   createTodo,
@@ -25,7 +23,7 @@ import { getProfile, updateProfile, UserProfile } from "../api/userService";
 import { Todo } from "../types/todo";
 import { TodoItem } from "../components/TodoItem";
 import { TodoInput } from "../components/TodoInput";
-import { User, LogOut, UserCircle } from "lucide-react-native";
+import { UserCircle } from "lucide-react-native";
 
 interface Props {
   onLogout: () => void;
@@ -36,10 +34,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
 
-  // Profile Menu State
-  const [isMenuVisible, setMenuVisible] = useState(false);
-
-  // User Edit Modal State
+  // Profile Modal
   const [isProfileModalVisible, setProfileModalVisible] = useState(false);
   const [editUsername, setEditUsername] = useState("");
   const [editEmail, setEditEmail] = useState("");
@@ -47,31 +42,25 @@ export const TodoScreen = ({ onLogout }: Props) => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
 
-  // Edit Modal State
+  // Todo Edit Modal
   const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editDueDate, setEditDueDate] = useState<Date | null>(null);
-  const [showEditDatePicker, setShowEditDatePicker] = useState(false);
 
   const fetchData = async () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setLoading(true);
     try {
-      const [todoData, userId] = await Promise.all([
-        getTodos(),
-        AsyncStorage.getItem("userId"),
-      ]);
+      const todosData = await getTodos();
+      setTodos(todosData);
 
-      setTodos(todoData);
-
-      if (userId) {
-        const userData = await getProfile(); // <-- now getProfile takes no args
-        setUser(userData);
-      }
+      const userData = await getProfile();
+      setUser(userData);
     } catch (error) {
       console.log("Fetch Error:", error);
+      Alert.alert("Error", "Failed to load todos or profile.");
     } finally {
       setLoading(false);
     }
@@ -87,9 +76,8 @@ export const TodoScreen = ({ onLogout }: Props) => {
       const newTodo = await createTodo({
         title,
         description,
-        completed: false,
         dueDate,
-        // userId optional, backend can handle
+        completed: false,
       });
       setTodos([...todos, newTodo]);
     } catch (error) {
@@ -98,14 +86,13 @@ export const TodoScreen = ({ onLogout }: Props) => {
   };
 
   const handleToggle = async (todo: Todo) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     const id = todo._id || todo.id;
     if (!id) return;
 
     try {
-      const updatedTodo = await toggleTodoStatus(id, !todo.completed);
-      setTodos(todos.map((t) => ((t._id || t.id) === id ? updatedTodo : t)));
-    } catch (error) {
+      const updated = await toggleTodoStatus(id, !todo.completed);
+      setTodos(todos.map((t) => ((t._id || t.id) === id ? updated : t)));
+    } catch {
       Alert.alert("Error", "Could not update status");
     }
   };
@@ -118,7 +105,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       await deleteTodo(id);
       setTodos(todos.filter((t) => (t._id || t.id) !== id));
-    } catch (error) {
+    } catch {
       Alert.alert("Error", "Could not delete todo");
     }
   };
@@ -143,16 +130,15 @@ export const TodoScreen = ({ onLogout }: Props) => {
         dueDate: editDueDate,
       });
       setTodos(todos.map((t) => ((t._id || t.id) === id ? updated : t)));
-      setEditModalVisible(false);
       setEditingTodo(null);
-    } catch (error) {
+      setEditModalVisible(false);
+    } catch {
       Alert.alert("Error", "Could not save changes");
     }
   };
 
   const handleOpenProfile = () => {
     if (!user) return;
-    setMenuVisible(false);
     setEditUsername(user.username);
     setEditEmail(user.email);
     setNewPassword("");
@@ -169,12 +155,9 @@ export const TodoScreen = ({ onLogout }: Props) => {
     }
     setIsUpdatingUser(true);
     try {
-      const payload: any = {
-        username: editUsername,
-        email: editEmail,
-      };
+      const payload: any = { username: editUsername, email: editEmail };
       if (newPassword) payload.newPassword = newPassword;
-      // Backend now only expects 1 argument (payload)
+
       const updated = await updateProfile(payload);
       setUser(updated);
       setProfileModalVisible(false);
@@ -190,7 +173,6 @@ export const TodoScreen = ({ onLogout }: Props) => {
     await AsyncStorage.removeItem("token");
     await AsyncStorage.removeItem("userId");
     setTodos([]);
-    setMenuVisible(false);
     onLogout();
   };
 
@@ -201,13 +183,11 @@ export const TodoScreen = ({ onLogout }: Props) => {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
+
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.header}>My Tasks</Text>
-        <TouchableOpacity
-          onPress={() => setMenuVisible(true)}
-          style={styles.profileButton}
-        >
+        <TouchableOpacity onPress={handleOpenProfile}>
           <UserCircle color="#007bff" size={32} />
         </TouchableOpacity>
       </View>
@@ -244,7 +224,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
       )}
 
       {/* Profile & Edit Modals */}
-      {/* ...keep your modal code unchanged ... */}
+      {/* Keep your existing modal components here */}
     </View>
   );
 };
@@ -263,7 +243,6 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   header: { fontSize: 30, fontWeight: "bold", color: "#212529" },
-  profileButton: { padding: 4 },
   listContent: { paddingBottom: 40 },
   emptyText: {
     textAlign: "center",
