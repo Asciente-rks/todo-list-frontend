@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "to-do-list-ts-frontend",
-    "slug": "to-do-list-ts-frontend",
+    "name": "Asciente To Do List",
+    "slug": "Asciente To Do List",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

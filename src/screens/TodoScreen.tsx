@@ -375,6 +375,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <TextInput
               style={styles.iosInput}
               secureTextEntry
+              placeholderTextColor="#8E8E93"
               placeholder="Password"
               value={currentPassword}
               onChangeText={setCurrentPassword}
@@ -413,6 +414,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <TextInput
               style={styles.iosInput}
               secureTextEntry
+              placeholderTextColor="#8E8E93"
               placeholder="Current Password"
               value={currentPassword}
               onChangeText={setCurrentPassword}
@@ -420,6 +422,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <TextInput
               style={styles.iosInput}
               secureTextEntry
+              placeholderTextColor="#8E8E93"
               placeholder="New Password"
               value={newPassword}
               onChangeText={setNewPassword}
@@ -427,6 +430,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <TextInput
               style={styles.iosInput}
               secureTextEntry
+              placeholderTextColor="#8E8E93"
               placeholder="Confirm New Password"
               value={confirmNewPassword}
               onChangeText={setConfirmNewPassword}
@@ -586,6 +590,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     fontSize: 16,
+    color: "#000000",
     marginBottom: 15,
   },
   label: { fontSize: 14, color: "#8E8E93", marginBottom: 5, fontWeight: "600" },
