@@ -1,8 +1,7 @@
 // App.tsx
 import React, { useState, useEffect } from "react";
-import { StatusBar } from "expo-status-bar";
-import { View, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { StatusBar } from "expo-status-bar";
 import { TodoScreen } from "./src/screens/TodoScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { RegisterScreen } from "./src/screens/RegisterScreen";
@@ -12,12 +11,16 @@ export default function App() {
   const [isRegistering, setIsRegistering] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const checkAuth = async () => {
-      const token = await AsyncStorage.getItem("token");
-      if (token) setIsAuthenticated(true);
+    const clearStaleSession = async () => {
+      await AsyncStorage.multiRemove(["token", "userId"]);
+      setIsAuthenticated(false);
+      setIsRegistering(false);
     };
-    checkAuth();
+
+    clearStaleSession().catch(() => {
+      setIsAuthenticated(false);
+      setIsRegistering(false);
+    });
   }, []);
 
   // Render authentication screens
@@ -39,14 +42,5 @@ export default function App() {
   }
 
   // Render main Todo screen when authenticated
-  return (
-    <>
-      <StatusBar style="auto" />
-      <TodoScreen onLogout={() => setIsAuthenticated(false)} />
-    </>
-  );
+  return <TodoScreen onLogout={() => setIsAuthenticated(false)} />;
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-});

@@ -28,6 +28,8 @@ import {
 } from "../api/todoService";
 import { getProfile, updateProfile, UserProfile } from "../api/userService";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { theme } from "../theme";
+import { Image } from "react-native";
 
 interface Props {
   onLogout: () => void;
@@ -43,6 +45,8 @@ export const TodoScreen = ({ onLogout }: Props) => {
   const [isProfileModalVisible, setProfileModalVisible] = useState(false);
   const [isPassConfirmVisible, setPassConfirmVisible] = useState(false);
   const [isChangePassVisible, setChangePassVisible] = useState(false);
+  const [isDeleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [todoToDelete, setTodoToDelete] = useState<Todo | null>(null);
 
   // Profile data
   const [editUsername, setEditUsername] = useState("");
@@ -59,6 +63,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
   const [editDescription, setEditDescription] = useState("");
   const [editDueDate, setEditDueDate] = useState<Date | null>(null);
   const [showEditDatePicker, setShowEditDatePicker] = useState(false);
+  const [isDeletingTodo, setIsDeletingTodo] = useState(false);
 
   // Fetch todos and user profile
   const fetchData = async () => {
@@ -113,16 +118,28 @@ export const TodoScreen = ({ onLogout }: Props) => {
   };
 
   // Delete Todo
-  const handleDelete = async (todo: Todo) => {
-    const id = todo._id || todo.id;
+  const handleDelete = (todo: Todo) => {
+    setTodoToDelete(todo);
+    setDeleteConfirmVisible(true);
+  };
+
+  const confirmDeleteTodo = async () => {
+    if (!todoToDelete) return;
+    const id = todoToDelete._id || todoToDelete.id;
     if (!id) return;
 
+    setIsDeletingTodo(true);
     try {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       await deleteTodo(id);
       setTodos(todos.filter((t) => (t._id || t.id) !== id));
+      setDeleteConfirmVisible(false);
+      setTodoToDelete(null);
     } catch {
       Alert.alert("Error", "Could not delete todo");
+      setDeleteConfirmVisible(false);
+    } finally {
+      setIsDeletingTodo(false);
     }
   };
 
@@ -245,15 +262,40 @@ export const TodoScreen = ({ onLogout }: Props) => {
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
 
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <Text style={styles.header}>My Tasks</Text>
-        <TouchableOpacity onPress={handleOpenProfile}>
-          <UserCircle color="#007AFF" size={32} />
+      <View style={styles.backgroundBlobOne} />
+      <View style={styles.backgroundBlobTwo} />
+
+      <View style={styles.hero}>
+        <View style={styles.heroTextBlock}>
+          <Text style={styles.kicker}>TaskFlow</Text>
+          <Text style={styles.header}>My Tasks</Text>
+          <Text style={styles.heroCopy}>
+            A clear view of what is next, what is done, and what still matters.
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={handleOpenProfile}
+          style={styles.profileButton}
+        >
+          <UserCircle color={theme.colors.accentStrong} size={34} />
         </TouchableOpacity>
       </View>
 
-      {/* Add Task Button */}
+      <View style={styles.heroCard}>
+        <Image
+          source={require("../../assets/splash-icon.png")}
+          style={styles.heroIcon}
+        />
+        <View style={styles.heroCardCopy}>
+          <Text style={styles.heroCardTitle}>
+            {user ? `Welcome, ${user.username}` : "Welcome back"}
+          </Text>
+          <Text style={styles.heroCardSub}>
+            Keep your day moving with one focused list.
+          </Text>
+        </View>
+      </View>
+
       <TouchableOpacity
         style={styles.addTaskButton}
         onPress={() => setAddModalVisible(true)}
@@ -262,11 +304,10 @@ export const TodoScreen = ({ onLogout }: Props) => {
         <Text style={styles.addTaskButtonText}>Add Task</Text>
       </TouchableOpacity>
 
-      {/* Todo List */}
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#6c757d"
+          color={theme.colors.accentStrong}
           style={{ marginTop: 50 }}
         />
       ) : (
@@ -287,6 +328,7 @@ export const TodoScreen = ({ onLogout }: Props) => {
           ListEmptyComponent={
             <Text style={styles.emptyText}>No tasks yet. Get started!</Text>
           }
+          showsVerticalScrollIndicator={false}
         />
       )}
 
@@ -330,16 +372,18 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <View style={styles.formGroup}>
               <Text style={styles.label}>Username</Text>
               <TextInput
-                style={styles.iosInput}
+                style={styles.themedInput}
                 value={editUsername}
                 onChangeText={setEditUsername}
+                placeholderTextColor={theme.colors.textMuted}
               />
               <Text style={styles.label}>Email</Text>
               <TextInput
-                style={styles.iosInput}
+                style={styles.themedInput}
                 value={editEmail}
                 onChangeText={setEditEmail}
                 keyboardType="email-address"
+                placeholderTextColor={theme.colors.textMuted}
               />
             </View>
             <TouchableOpacity
@@ -349,18 +393,16 @@ export const TodoScreen = ({ onLogout }: Props) => {
               <Text style={styles.primaryButtonText}>Save Changes</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.secondaryButton}
+              style={styles.accentButton}
               onPress={() => setChangePassVisible(true)}
             >
-              <Text style={styles.secondaryButtonText}>Change Password</Text>
+              <Text style={styles.accentButtonText}>Change Password</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.secondaryButton}
+              style={styles.dangerButton}
               onPress={handleLogout}
             >
-              <Text style={[styles.secondaryButtonText, { color: "#FF3B30" }]}>
-                Logout
-              </Text>
+              <Text style={styles.dangerButtonText}>Logout</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -373,32 +415,35 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <Text style={styles.alertTitle}>Confirm Changes</Text>
             <Text style={styles.alertSub}>Enter current password to save.</Text>
             <TextInput
-              style={styles.iosInput}
+              style={styles.themedInput}
               secureTextEntry
-              placeholderTextColor="#8E8E93"
+              placeholderTextColor={theme.colors.textMuted}
               placeholder="Password"
               value={currentPassword}
               onChangeText={setCurrentPassword}
             />
-            <View style={styles.alertButtons}>
+            <View style={styles.alertButtonsRow}>
               <TouchableOpacity
-                style={styles.alertBtn}
+                style={styles.alertCancelBtn}
                 onPress={() => {
                   setPassConfirmVisible(false);
                   setCurrentPassword("");
                 }}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.alertCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.alertBtn, isUpdatingUser && { opacity: 0.5 }]}
+                style={[
+                  styles.alertConfirmBtn,
+                  isUpdatingUser && { opacity: 0.6 },
+                ]}
                 onPress={handleUpdateProfile}
                 disabled={isUpdatingUser}
               >
                 {isUpdatingUser ? (
-                  <ActivityIndicator size="small" color="#007AFF" />
+                  <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.confirmText}>Confirm</Text>
+                  <Text style={styles.alertConfirmText}>Confirm</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -412,32 +457,32 @@ export const TodoScreen = ({ onLogout }: Props) => {
           <View style={styles.alertBox}>
             <Text style={styles.alertTitle}>Change Password</Text>
             <TextInput
-              style={styles.iosInput}
+              style={styles.themedInput}
               secureTextEntry
-              placeholderTextColor="#8E8E93"
+              placeholderTextColor={theme.colors.textMuted}
               placeholder="Current Password"
               value={currentPassword}
               onChangeText={setCurrentPassword}
             />
             <TextInput
-              style={styles.iosInput}
+              style={styles.themedInput}
               secureTextEntry
-              placeholderTextColor="#8E8E93"
+              placeholderTextColor={theme.colors.textMuted}
               placeholder="New Password"
               value={newPassword}
               onChangeText={setNewPassword}
             />
             <TextInput
-              style={styles.iosInput}
+              style={styles.themedInput}
               secureTextEntry
-              placeholderTextColor="#8E8E93"
+              placeholderTextColor={theme.colors.textMuted}
               placeholder="Confirm New Password"
               value={confirmNewPassword}
               onChangeText={setConfirmNewPassword}
             />
-            <View style={styles.alertButtons}>
+            <View style={styles.alertButtonsRow}>
               <TouchableOpacity
-                style={styles.alertBtn}
+                style={styles.alertCancelBtn}
                 onPress={() => {
                   setChangePassVisible(false);
                   setCurrentPassword("");
@@ -445,17 +490,58 @@ export const TodoScreen = ({ onLogout }: Props) => {
                   setConfirmNewPassword("");
                 }}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.alertCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.alertBtn, isUpdatingUser && { opacity: 0.5 }]}
+                style={[
+                  styles.alertConfirmBtn,
+                  isUpdatingUser && { opacity: 0.6 },
+                ]}
                 onPress={handleChangePassword}
                 disabled={isUpdatingUser}
               >
                 {isUpdatingUser ? (
-                  <ActivityIndicator size="small" color="#007AFF" />
+                  <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.confirmText}>Update</Text>
+                  <Text style={styles.alertConfirmText}>Update</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={isDeleteConfirmVisible} transparent animationType="fade">
+        <View style={styles.overlayCenter}>
+          <View style={styles.alertBox}>
+            <Text style={styles.alertTitle}>Delete Task?</Text>
+            <Text style={styles.alertSub}>
+              Are you sure you want to delete "{todoToDelete?.title}"? This
+              action cannot be undone.
+            </Text>
+            <View style={styles.alertButtonsRow}>
+              <TouchableOpacity
+                style={styles.alertCancelBtn}
+                onPress={() => {
+                  setDeleteConfirmVisible(false);
+                  setTodoToDelete(null);
+                }}
+              >
+                <Text style={styles.alertCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.alertDangerBtn,
+                  isDeletingTodo && { opacity: 0.6 },
+                ]}
+                onPress={confirmDeleteTodo}
+                disabled={isDeletingTodo}
+              >
+                {isDeletingTodo ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.alertDangerText}>Delete</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -482,24 +568,26 @@ export const TodoScreen = ({ onLogout }: Props) => {
             <View style={styles.formGroup}>
               <Text style={styles.label}>Title</Text>
               <TextInput
-                style={styles.iosInput}
+                style={styles.themedInput}
                 value={editTitle}
                 onChangeText={setEditTitle}
+                placeholderTextColor={theme.colors.textMuted}
               />
               <Text style={styles.label}>Description</Text>
               <TextInput
-                style={[styles.iosInput, { height: 80 }]}
+                style={[styles.themedInput, { height: 80 }]}
                 value={editDescription}
                 onChangeText={setEditDescription}
                 multiline
+                placeholderTextColor={theme.colors.textMuted}
               />
               <Text style={styles.label}>Due Date</Text>
               <TouchableOpacity
-                style={styles.iosDateBtn}
+                style={styles.themeeDateBtn}
                 onPress={() => setShowEditDatePicker(true)}
               >
-                <Calendar size={18} color="#007AFF" />
-                <Text style={styles.iosDateText}>
+                <Calendar size={18} color={theme.colors.accentStrong} />
+                <Text style={styles.themeDateText}>
                   {editDueDate
                     ? editDueDate.toLocaleDateString()
                     : "No date set"}
@@ -531,20 +619,103 @@ export const TodoScreen = ({ onLogout }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 20, backgroundColor: "#f0f2f5" },
-  headerRow: {
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    backgroundColor: theme.colors.background,
+  },
+  backgroundBlobOne: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 220,
+    backgroundColor: "rgba(37,99,235,0.12)",
+    top: -70,
+    right: -80,
+  },
+  backgroundBlobTwo: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 180,
+    backgroundColor: "rgba(22,163,74,0.10)",
+    top: 140,
+    left: -70,
+  },
+  hero: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 25,
-    marginTop: 60,
+    marginBottom: 16,
+    marginTop: 56,
   },
-  header: { fontSize: 30, fontWeight: "bold", color: "#212529" },
+  heroTextBlock: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  kicker: {
+    color: theme.colors.accentStrong,
+    textTransform: "uppercase",
+    letterSpacing: 1.8,
+    fontSize: 11,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  header: { fontSize: 32, fontWeight: "800", color: theme.colors.text },
+  heroCopy: {
+    color: theme.colors.textMuted,
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  profileButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  heroCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 2,
+  },
+  heroIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+  },
+  heroCardCopy: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  heroCardTitle: {
+    color: theme.colors.text,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  heroCardSub: {
+    color: theme.colors.textMuted,
+    marginTop: 4,
+    lineHeight: 18,
+  },
   listContent: { paddingBottom: 40 },
   emptyText: {
     textAlign: "center",
     marginTop: 40,
-    color: "#aaa",
+    color: theme.colors.textMuted,
     fontSize: 16,
   },
   overlay: {
@@ -555,8 +726,8 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: "85%",
-    backgroundColor: "#fff",
-    borderRadius: 14,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 24,
     padding: 20,
   },
   sheetContent: { flex: 1, padding: 20, backgroundColor: "#fff" },
@@ -572,38 +743,67 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  modalTitle: { fontSize: 22, fontWeight: "600", color: "#333" },
-  cancelButtonText: { color: "#007AFF", fontSize: 17 },
+  modalTitle: { fontSize: 22, fontWeight: "700", color: theme.colors.text },
+  cancelButtonText: { color: theme.colors.accentStrong, fontSize: 17 },
   addTaskButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: theme.colors.accentStrong,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 20,
     gap: 8,
   },
-  addTaskButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
-  iosInput: {
-    backgroundColor: "#F2F2F7",
-    padding: 12,
-    borderRadius: 10,
+  addTaskButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  themedInput: {
+    backgroundColor: theme.colors.surfaceSoft,
+    padding: 14,
+    borderRadius: 14,
     fontSize: 16,
-    color: "#000000",
+    color: theme.colors.text,
     marginBottom: 15,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
-  label: { fontSize: 14, color: "#8E8E93", marginBottom: 5, fontWeight: "600" },
+  label: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    marginBottom: 5,
+    fontWeight: "600",
+  },
   primaryButton: {
-    backgroundColor: "#007AFF",
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: theme.colors.accentStrong,
+    padding: 14,
+    borderRadius: 14,
     alignItems: "center",
     marginTop: 10,
   },
-  primaryButtonText: { color: "#fff", fontSize: 17, fontWeight: "600" },
-  secondaryButton: { padding: 16, alignItems: "center", marginTop: 10 },
-  secondaryButtonText: { color: "#007AFF", fontSize: 17, fontWeight: "500" },
+  primaryButtonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  accentButton: {
+    backgroundColor: theme.colors.accentSoft,
+    padding: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  accentButtonText: {
+    color: theme.colors.accentStrong,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  dangerButton: {
+    backgroundColor: "rgba(225, 29, 72, 0.1)",
+    padding: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  dangerButtonText: {
+    color: theme.colors.danger,
+    fontSize: 16,
+    fontWeight: "700",
+  },
   overlayCenter: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -611,43 +811,86 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   alertBox: {
-    width: 270,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 20,
+    width: 280,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 24,
+    padding: 22,
     alignItems: "stretch",
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   alertTitle: {
-    fontSize: 17,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "800",
     textAlign: "center",
-    marginBottom: 5,
+    marginBottom: 6,
+    color: theme.colors.text,
   },
   alertSub: {
-    fontSize: 13,
+    fontSize: 14,
     textAlign: "center",
-    marginBottom: 15,
-    color: "#333",
+    marginBottom: 18,
+    color: theme.colors.textMuted,
+    lineHeight: 20,
   },
-  alertButtons: {
+  alertButtonsRow: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    borderTopWidth: 0.5,
-    borderColor: "#C6C6C8",
-    marginTop: 10,
-    paddingTop: 10,
+    gap: 10,
+    marginTop: 18,
   },
-  alertBtn: { flex: 1, alignItems: "center" },
-  confirmText: { color: "#007AFF", fontSize: 17, fontWeight: "600" },
-  iosDateBtn: {
+  alertCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: theme.colors.surfaceSoft,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  alertCancelText: {
+    color: theme.colors.text,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  alertConfirmBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: theme.colors.accentStrong,
+    alignItems: "center",
+  },
+  alertConfirmText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  alertDangerBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: theme.colors.danger,
+    alignItems: "center",
+  },
+  alertDangerText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  themeeDateBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F2F2F7",
-    padding: 10,
-    borderRadius: 10,
-    gap: 8,
+    backgroundColor: theme.colors.surfaceSoft,
+    padding: 12,
+    borderRadius: 14,
+    gap: 10,
     marginBottom: 15,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
-  iosDateText: { fontSize: 16, color: "#007AFF" },
+  themeDateText: {
+    fontSize: 15,
+    color: theme.colors.accentStrong,
+    fontWeight: "700",
+  },
   formGroup: { marginBottom: 20 },
 });

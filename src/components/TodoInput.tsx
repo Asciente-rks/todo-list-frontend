@@ -6,7 +6,9 @@ import {
   Text,
   StyleSheet,
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker"; // Import DateTimePicker
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Calendar } from "lucide-react-native";
+import { theme } from "../theme";
 
 interface Props {
   onAdd: (title: string, description: string, dueDate: Date | null) => void;
@@ -38,7 +40,7 @@ export const TodoInput = ({ onAdd }: Props) => {
       <TextInput
         style={styles.input}
         placeholder="Add a new task..."
-        placeholderTextColor="#adb5bd"
+        placeholderTextColor="#93A0B5"
         value={task}
         onChangeText={setTask}
         onSubmitEditing={handleAdd}
@@ -59,8 +61,9 @@ export const TodoInput = ({ onAdd }: Props) => {
           style={styles.datePickerButton}
           onPress={() => setShowDatePicker(true)}
         >
+          <Calendar size={16} color={theme.colors.accentStrong} />
           <Text style={styles.datePickerButtonText}>
-            {dueDate ? `📅 ${dueDate.toLocaleDateString()}` : "Set Due Date"}
+            {dueDate ? dueDate.toLocaleDateString() : "Set due date"}
           </Text>
         </TouchableOpacity>
 
@@ -87,7 +90,7 @@ export const TodoInput = ({ onAdd }: Props) => {
 
 const styles = StyleSheet.create({
   inputContainer: {
-    backgroundColor: "#ffffff",
+    backgroundColor: theme.colors.surface,
     padding: 0,
     borderRadius: 0,
     marginBottom: 0,
@@ -95,12 +98,12 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#e9ecef",
+    borderColor: theme.colors.border,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: "#fff",
-    color: "#212529",
+    borderRadius: 14,
+    backgroundColor: theme.colors.surfaceSoft,
+    color: theme.colors.text,
     fontSize: 16,
   },
   buttonRow: {
@@ -110,33 +113,36 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   addButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: theme.colors.accentStrong,
     justifyContent: "center",
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 14,
     flex: 1,
     height: 50,
     alignItems: "center",
   },
   disabledButton: {
-    backgroundColor: "#b3d7ff",
+    backgroundColor: "#97B8F5",
+    opacity: 0.6,
   },
-  addButtonText: { color: "#fff", fontWeight: "bold" },
+  addButtonText: { color: "#fff", fontWeight: "700" },
   descriptionInput: {
-    minHeight: 60, // Slightly more space for description
-    paddingTop: 12, // Ensure text starts comfortably from the top
-    textAlignVertical: "top", // For Android multiline input to start text at the top
+    minHeight: 60,
+    paddingTop: 12,
+    textAlignVertical: "top",
   },
   datePickerButton: {
     borderWidth: 1,
-    borderColor: "#e9ecef",
+    borderColor: theme.colors.border,
     padding: 12,
-    borderRadius: 8,
-    backgroundColor: "#fff",
+    borderRadius: 14,
+    backgroundColor: theme.colors.surfaceSoft,
     flex: 1,
     height: 45,
     justifyContent: "center",
     alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
   },
-  datePickerButtonText: { color: "#343a40" },
+  datePickerButtonText: { color: theme.colors.text, fontWeight: "600" },
 });
