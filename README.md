@@ -1,23 +1,18 @@
-# To-Do List
+# To-Do List — Frontend
 
-> A multi-user todo system with a native mobile app — sign up, sign in, and manage tasks from your phone with cloud sync.
+> A cross-platform mobile client for the To-Do List App — sign up, sign in, and manage tasks on Android, iOS, or the browser from a single Expo / React Native codebase.
 
-A two-table cloud-synced todo app: Express + Sequelize + MySQL backend deployed on Render, Expo / React Native mobile client distributed as an Android APK via EAS Build. Cold-start resilient (2-minute timeouts, friendly wake-up notice) so the Render free tier doesn't surface as a confusing error.
-
-The system spans **two repositories**:
-
-| Repository | What it is | Stack |
-|---|---|---|
-| [`todo-list`](https://github.com/Asciente-rks/todo-list) | REST API backend | Express 5 + Sequelize + MySQL + JWT |
-| [`todo-list-frontend`](https://github.com/Asciente-rks/todo-list-frontend) | Mobile + web client | **Expo / React Native** (Android, iOS, web) |
+This is the **mobile + web** half of the To-Do List App: an Expo SDK 54 / React Native 0.81 client distributed as an Android APK via EAS Build, with TypeScript throughout. It speaks to the [todo-list](https://github.com/Asciente-rks/todo-list) Express + Sequelize + MySQL backend over HTTPS + JWT, handles Render's free-tier cold starts gracefully with a 2-minute timeout and a `WakeUpNotice` banner, and requires no navigation library — a single boolean flag in `App.tsx` gates auth state.
 
 ---
 
-## Live Demo
+## Download
 
-- **🪪 Live API:** [todo-list-backend-4li8.onrender.com/api](https://todo-list-backend-4li8.onrender.com/api)
-- **📱 Android APK:** Build via EAS or download from [GitHub Releases](https://github.com/Asciente-rks/todo-list-frontend/releases)
-- **⏳ Cold start:** Render free tier puts the backend to sleep after 15 min idle — first request takes ~30-60 s; the mobile app shows a friendly "Waking up the server" notice during that window.
+- **Android APK:** [GitHub Releases](https://github.com/Asciente-rks/todo-list-frontend/releases) — sideload directly on any Android device
+- **EAS Build page:** [Expo project builds](https://expo.dev/accounts/asciente-rks/projects/to-do-list-ts-frontend/builds/b3c0fe0b-93d5-4a8d-a56f-7ebd12440418)
+- **Live API:** [todo-list-backend-4li8.onrender.com/api](https://todo-list-backend-4li8.onrender.com/api)
+
+> Cold start: Render's free tier sleeps after 15 min idle — the app shows a friendly "Waking up the server" banner while the backend wakes up (~30–60 s first request).
 
 ---
 
@@ -25,199 +20,138 @@ The system spans **two repositories**:
 
 1. [What It Does](#what-it-does)
 2. [Architecture](#architecture)
-3. [Tech Stack](#tech-stack)
-4. [Database Design](#database-design)
+3. [Screen Flow](#screen-flow)
+4. [Tech Stack](#tech-stack)
 5. [Repository Layout](#repository-layout)
 6. [API Reference](#api-reference)
 7. [Authentication & Credentials](#authentication--credentials)
-8. [Deployment](#deployment)
-9. [Cost Breakdown](#cost-breakdown)
-10. [Local Development](#local-development)
-11. [Author](#author)
+8. [Cold-Start Handling](#cold-start-handling)
+9. [Build & Distribution](#build--distribution)
+10. [Cost Breakdown](#cost-breakdown)
+11. [Local Development](#local-development)
+12. [Repos](#repos)
+13. [Author](#author)
 
 ---
 
 ## What It Does
 
-- **Register** with username, email, and password (bcrypt-hashed).
-- **Sign in** to get a JWT, persisted in `AsyncStorage` on the device.
-- **Create todos** with title, description, optional due date.
-- **Toggle completed**, edit, and delete — all changes sync to the server.
-- **Per-user data** — each user only sees and can mutate their own todos (FK-enforced).
-- **Native mobile app** — Android, iOS, and web from a single Expo codebase.
-- **Friendly cold-start UX** — when the backend is sleeping (Render free tier), the app shows a "Waking up the server" banner instead of a generic spinner.
+- **Register** — username, email, and password; bcrypt-hashed server-side, JWT returned on success and stored immediately.
+- **Sign in** — email + password → JWT persisted in `AsyncStorage`; survives app restarts.
+- **Create todos** — title, optional description, optional due date via a native date picker.
+- **Toggle completed** — optimistic UI update synced to the server.
+- **Edit & delete** — all mutations sync to the backend; per-user FK enforcement means only your own todos are ever visible.
+- **Cold-start UX** — `WakeUpNotice` banner + 2-minute `AbortController` timeout + retry wrapper so the Render free-tier sleep is invisible as an error.
+- **Cross-platform** — one codebase targets Android APK, iOS, and web via Expo.
 
 ---
 
 ## Architecture
 
-```
-┌────────────────────────────────────────┐
-│ Mobile / Web (Expo)                    │
-│  • React Native + TypeScript           │
-│  • Expo SDK 54 + RN 0.81               │
-│  • AsyncStorage (token, userId)        │
-│  • Custom fetch wrapper:               │
-│    - 2-min AbortController timeout     │
-│    - JWT auto-attach                   │
-│    - retry wrapper for cold-start      │
-└──────────────────┬─────────────────────┘
-                   │ HTTPS + JWT (Bearer)
-                   │
-                   ▼
-┌────────────────────────────────────────┐
-│ Express 5 backend (Render Web Service) │
-│  • CORS: origin "*"                    │
-│  • express.json                        │
-│  • request logging middleware          │
-│  • /, /api, /health liveness routes    │
-│  • /api/users/* + /api/todos/*         │
-│  • 404 + global error handler          │
-└──────────────────┬─────────────────────┘
-                   │ Sequelize 6 (mysql2 driver)
-                   │
-                   ▼
-┌────────────────────────────────────────┐
-│ MySQL (free-tier provider)             │
-│  • users + todos tables                │
-│  • indexed FK on todos.userId          │
-└────────────────────────────────────────┘
+```mermaid
+graph TB
+    Mobile["Mobile / Web<br/>Expo SDK 54 + RN 0.81<br/>AsyncStorage JWT<br/>2-min AbortController"]
+    Express["Express 5 backend<br/>Render Web Service<br/>Sequelize 6 + mysql2"]
+    MySQL[("MySQL · free-tier provider<br/>users · todos<br/>indexed FK on userId")]
+    EAS["EAS Build · Expo"]
+    Outputs["Android APK · iOS · Web"]
 
-      ▲
-      │
-EAS Build ──► Android APK + iOS + web
-                (preview / production profiles)
+    Mobile -->|HTTPS + JWT with retry| Express
+    Express --> MySQL
+    EAS --> Outputs
+    Mobile -.- EAS
+
+    classDef edge fill:#0f1422,stroke:#5eead4,color:#e2e8f0
+    classDef store fill:#0a0e1a,stroke:#5eead4,color:#5eead4
+    class Mobile,Express,EAS,Outputs edge
+    class MySQL store
 ```
 
-**Notable architectural choices:**
+### Notable architectural choices
 
-- **Render free tier for the backend** — sleeps after 15 min idle. The mobile app handles this gracefully: 2-minute request timeout (covers cold start) + `WakeUpNotice` banner + retry wrapper.
-- **JWT in AsyncStorage** — works the same on Android, iOS, and web. No platform-specific secure storage needed at this scale.
-- **Single-flag auth state** in `App.tsx` — `isAuthenticated` + `isRegistering` toggle which screen renders. No navigation library; keeps the bundle small.
-- **Centralized fetch wrapper** with annotated errors — 4xx responses get a `.status` field so callers can branch on validation (no scary red logs) vs network failure.
+- **No navigation library.** `App.tsx` holds two booleans — `isAuthenticated` + `isRegistering` — and renders `<LoginScreen>`, `<RegisterScreen>`, or `<TodoScreen>` directly. Keeps the bundle small and removes a peer-dep surface area.
+- **Centralized fetch wrapper** (`src/api/client.ts`) attaches the JWT `Bearer` token on every request, enforces a 2-minute `AbortController` timeout, and annotates 4xx responses with a `.status` field so callers can branch on validation errors vs. network failures without catching raw `Error` objects.
+- **Retry wrapper** (`src/api/retryWrapper.ts`) wraps the fetch layer with bounded retries on transient failures — skips retry on 4xx validation errors.
+- **JWT in `AsyncStorage`** — cross-platform persistent token store. No platform-specific secure storage needed at portfolio scale; works identically on Android, iOS, and web.
+- **Render cold-start handling** — `WakeUpNotice.tsx` displays a friendly banner when the first request is slow; the 2-minute timeout gives the backend time to wake without surfacing a timeout error to the user.
+
+---
+
+## Screen Flow
+
+```mermaid
+flowchart TD
+    Boot["App.tsx<br/>reads AsyncStorage<br/>on mount"]
+    Login["LoginScreen<br/>email + password"]
+    Register["RegisterScreen<br/>username + email + password"]
+    Todo["TodoScreen<br/>task list + CRUD"]
+    Wake["WakeUpNotice<br/>banner overlay"]
+    API["Express 5 API<br/>(Render)"]
+
+    Boot -->|no token| Login
+    Boot -->|valid token| Todo
+    Login -->|tap Register| Register
+    Register -->|success → JWT| Todo
+    Login -->|success → JWT| Todo
+    Todo -->|any slow request| Wake
+    Wake -.hides on response.-> Todo
+    Todo -->|HTTPS + JWT| API
+    Login -->|HTTPS| API
+    Register -->|HTTPS| API
+
+    classDef screen fill:#0f1422,stroke:#5eead4,color:#e2e8f0
+    classDef infra fill:#0a0e1a,stroke:#5eead4,color:#5eead4
+    classDef overlay fill:#1f0f22,stroke:#a978ff,color:#e2c8ff
+    class Boot,Login,Register,Todo screen
+    class API infra
+    class Wake overlay
+```
 
 ---
 
 ## Tech Stack
 
-### Backend (`todo-list`)
-
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| Runtime | Node.js + TypeScript 5 | Standard, broad host support |
-| Framework | **Express 5** | Stable, familiar |
-| ORM | Sequelize 6 | Models + associations + sync in one |
-| Database | **MySQL** via `mysql2` | Free-tier providers abundant |
-| Auth | JWT + bcrypt | Stateless, standard |
-| Validation | Yup | Tiny, ergonomic |
-| Dev | `ts-node-dev` (`--respawn --transpile-only --poll`) | Fast restart |
-| Hosting | **Render Web Service** (default branch: `master`) | Free tier, auto-deploy on push |
-
-### Frontend (`todo-list-frontend`)
-
 | Layer | Technology | Why |
 |-------|-----------|-----|
 | Framework | **Expo SDK 54** + React Native 0.81 + React 19 | One codebase → Android, iOS, web |
-| Language | TypeScript 5 | Type safety across screens + API |
-| Storage | `@react-native-async-storage/async-storage` | Cross-platform persistent token store |
-| Date pickers | `@react-native-community/datetimepicker` | Native UI on each platform |
-| Icons | `lucide-react-native` | Consistent SVG icons |
-| HTTP | Plain `fetch` wrapper (`src/api/client.ts`) | 2-min `AbortController`, JWT auto-attach |
-| Build | **EAS Build** (`eas.json`) | Cloud builds for Android APK/AAB + iOS |
-
----
-
-## Database Design
-
-Two tables. Both keyed by UUID v4. The relationship is a simple 1-to-many (one user → many todos).
-
-### `users`
-
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | UUID (PK) | UUIDv4 |
-| `username` | VARCHAR | unique |
-| `email` | VARCHAR | unique |
-| `password` | VARCHAR | bcrypt hash |
-| `createdAt` / `updatedAt` | DATETIME | Sequelize-managed |
-
-### `todos`
-
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | UUID (PK) | UUIDv4 |
-| `title` | VARCHAR | not null |
-| `description` | VARCHAR | optional |
-| `completed` | BOOLEAN | default false |
-| `dueDate` | DATETIME | nullable |
-| `userId` | UUID (FK → users.id) | **indexed** |
-| `createdAt` / `updatedAt` | DATETIME | Sequelize-managed |
-
-**Notable design choices:**
-
-- **`todos.userId` is indexed explicitly** (`indexes: [{ fields: ["userId"] }]`) so per-user list queries hit the index and stay fast as the table grows.
-- **No migrations** — schema is created/updated by `sequelize.sync()` on server startup. For production-grade evolution, layer in `sequelize-cli` migrations.
-- **`mysql2` driver** instead of `pg` — broader free-tier MySQL support than free-tier Postgres.
+| Language | TypeScript 5.9 | Type safety across screens + API layer |
+| Storage | `@react-native-async-storage/async-storage` 2.2.0 | Cross-platform persistent JWT store |
+| Date pickers | `@react-native-community/datetimepicker` 8.4.4 | Native UI per platform |
+| Icons | `lucide-react-native` 1.7.0 | Consistent SVG icon set |
+| HTTP | Plain `fetch` wrapper (`src/api/client.ts`) | 2-min `AbortController`, JWT auto-attach, annotated errors |
+| Build | **EAS Build** (`eas.json`) | Cloud builds — Android APK/AAB + iOS |
+| Distribution | GitHub Releases (APK sideload) | Free, no Play Store review overhead |
 
 ---
 
 ## Repository Layout
 
-### Backend
-
-```
-todo-list/
-├── package.json                       # Express 5, Sequelize, JWT, bcrypt, yup
-├── tsconfig.json
-└── src/
-    ├── server.ts                      # CORS, JSON, request logging,
-    │                                  # /api/users + /api/todos mounts,
-    │                                  # /health probe, 404 + error handler
-    ├── associations/
-    │   └── associations.ts            # User.hasMany(Todo) + Todo.belongsTo(User)
-    ├── models/
-    │   ├── users/user.sequelize.ts    # id, username, email, password
-    │   └── todo/todo.sequelize.ts     # id, title, description, completed,
-    │                                  # dueDate, userId
-    ├── controllers/                   # Per-resource controllers
-    ├── services/                      # Business logic
-    ├── repositories/                  # Sequelize query layer
-    ├── routes/
-    │   ├── users/user.routes.ts       # /api/users/*  (incl. /login, /register)
-    │   └── todo/todo.routes.ts        # /api/todos/*
-    ├── middlewares/                   # auth + validation
-    ├── dtos/                          # Request/response shapes
-    └── utils/                         # db.ts, helpers
-```
-
-### Frontend (Expo)
-
 ```
 todo-list-frontend/
-├── package.json                       # Expo 54, RN 0.81, React 19
-├── app.json                           # Expo app config (icons, package, EAS projectId)
-├── eas.json                           # EAS Build profiles (preview APK + production)
+├── package.json                           # Expo 54, RN 0.81, React 19
+├── app.json                               # Expo app config (icons, package, EAS projectId)
+├── eas.json                               # EAS Build profiles (preview APK + production)
 ├── tsconfig.json
-├── index.ts                           # registerRootComponent(App)
-├── App.tsx                            # Auth gate → Login / Register / TodoScreen
-├── assets/                            # icon.png, splash, adaptive-icon, favicon
+├── index.ts                               # registerRootComponent(App)
+├── App.tsx                                # Auth gate → Login / Register / TodoScreen
+├── assets/                                # icon.png, splash, adaptive-icon, favicon
 └── src/
     ├── api/
-    │   ├── client.ts                  # fetch wrapper, 2-min timeout, JWT injector
-    │   ├── retryWrapper.ts            # Retry logic for cold-starts
-    │   ├── authService.ts             # /api/users/login + /register
-    │   ├── todoService.ts             # /api/todos CRUD
+    │   ├── client.ts                      # fetch wrapper, 2-min timeout, JWT injector
+    │   ├── retryWrapper.ts                # Retry logic for cold-starts
+    │   ├── authService.ts                 # /api/users/login + /register
+    │   ├── todoService.ts                 # /api/todos CRUD
     │   └── userService.ts
-    ├── assets/                        # Icon GIFs (add, check-mark, to-do, trash)
+    ├── assets/                            # Icon GIFs (add, check-mark, to-do, trash)
     ├── components/
     │   ├── TodoInput.tsx
     │   ├── TodoItem.tsx
-    │   └── WakeUpNotice.tsx           # "Server waking up" banner
+    │   └── WakeUpNotice.tsx               # "Server waking up" banner
     ├── screens/
     │   ├── LoginScreen.tsx
     │   ├── RegisterScreen.tsx
-    │   └── TodoScreen.tsx             # Main list + actions (~26KB)
-    ├── theme.ts                       # Colors / spacing tokens
+    │   └── TodoScreen.tsx                 # Main list + actions (~26 KB)
+    ├── theme.ts                           # Colors / spacing tokens
     └── types/
         └── todo.ts
 ```
@@ -226,9 +160,11 @@ todo-list-frontend/
 
 ## API Reference
 
+All requests go to `EXPO_PUBLIC_API_URL` (baked in at EAS build time).
+
 | Method | Path | Auth | Purpose |
-|---|---|---|---|
-| `GET` | `/` | none | Plain text liveness ("Server is alive") |
+|--------|------|------|---------|
+| `GET` | `/` | none | Plaintext liveness ("Server is alive") |
 | `GET` | `/api` | none | JSON liveness (`{ status: "online", message: ... }`) |
 | `GET` | `/health` | none | JSON health probe (`{ status: "UP", service, timestamp }`) |
 | `POST` | `/api/users/register` | none | Create a user — bcrypt-hash password, return JWT |
@@ -239,13 +175,13 @@ todo-list-frontend/
 | `PATCH` / `PUT` | `/api/todos/:id` | JWT | Update title / description / completed / dueDate |
 | `DELETE` | `/api/todos/:id` | JWT | Delete a todo |
 
-CORS is wide open (`origin: "*"`) since the client is a mobile app, not a same-origin web page. Every request is logged with `[ISO-timestamp] METHOD URL` for Render's log explorer; unhandled paths fall through to a structured 404 + global error handler.
+CORS is wide open (`origin: "*"`) since the client is a mobile app, not a same-origin web page.
 
 ---
 
 ## Authentication & Credentials
 
-This system has **no seeded accounts** — register through the signup flow.
+There are **no seeded accounts** — register through the sign-up flow.
 
 ### Self-registration
 
@@ -261,36 +197,81 @@ This system has **no seeded accounts** — register through the signup flow.
 3. JWT stored in `AsyncStorage` (`token` key) + `userId`.
 4. Token persists across app restarts; `App.tsx` clears stale tokens on initial mount and re-routes to Login.
 
-### Why no seed?
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant App as App.tsx
+    participant Store as AsyncStorage
+    participant API as Express 5 API
 
-The backend is a personal scratchpad and changes frequently — seeded accounts would constantly drift. Single-user behaviour is well-tested via fresh registrations.
+    User->>App: Open app
+    App->>Store: Read "token"
+    alt token found
+        Store-->>App: JWT
+        App-->>User: TodoScreen
+    else no token
+        App-->>User: LoginScreen
+    end
+    User->>App: Submit email + password
+    App->>API: POST /api/users/login
+    API-->>App: 200 + JWT
+    App->>Store: Write "token" + "userId"
+    App-->>User: TodoScreen
+```
 
 ---
 
-## Deployment
+## Cold-Start Handling
 
-### Backend → Render Web Service
+```mermaid
+flowchart LR
+    Request["API request fires<br/>(e.g. login)"]
+    Timeout["AbortController<br/>2-min deadline"]
+    Slow{"response > ~2 s?"}
+    Banner["WakeUpNotice shows<br/>'Waking up the server'"]
+    Retry["retryWrapper<br/>bounded retry on<br/>transient failures"]
+    Success["Response lands<br/>banner hides"]
 
-The production backend lives at **`https://todo-list-backend-4li8.onrender.com/api`**.
+    Request --> Timeout
+    Request --> Slow
+    Slow -->|yes| Banner
+    Slow -->|no| Success
+    Timeout --> Retry
+    Retry --> Success
+    Banner -.hides.-> Success
 
-To deploy your own:
+    classDef flow fill:#0f1422,stroke:#5eead4,color:#e2e8f0
+    classDef warm fill:#1f0f22,stroke:#a978ff,color:#e2c8ff
+    class Request,Timeout,Retry,Success flow
+    class Slow,Banner warm
+```
 
-1. Create a Render Web Service pointing at this repo, branch **`master`**.
-2. Set build command `npm install && npm run build`, start command `npm start`.
-3. Provision a MySQL database (free providers: Aiven, FreeSQLDatabase, Filess.io, Render's own Postgres if you migrate).
-4. Set the environment variables listed below.
-5. Render auto-deploys on every push to `master`.
+- **`client.ts`** — every `fetch` call is wrapped in an `AbortController` with a 2-minute signal; generous enough to wait out a Render cold start.
+- **`WakeUpNotice.tsx`** — shown by `TodoScreen` and `LoginScreen` when any request is slow; disappears when the response arrives.
+- **`retryWrapper.ts`** — bounded retry on transient network failures; skips retry on 4xx validation errors.
 
-The `Cache-Control: no-store` header on `/health` plus the `/` and `/api` liveness routes are designed to keep Render's health checks happy.
+For paying tiers / always-on hosting, none of this is needed — the same code just makes requests faster.
 
-### Frontend → Expo Application Services (EAS)
+---
+
+## Build & Distribution
 
 ```bash
+# Install
 cd todo-list-frontend
 npm install
-npx eas build --platform android --profile preview      # APK for sideloading
-npx eas build --platform android --profile production   # AAB for Play Store
-npx eas build --platform ios --profile production       # iOS build
+
+# Local dev
+npm start              # Expo dev server with QR code
+npm run android        # Android emulator / connected device
+npm run ios            # iOS simulator (macOS only)
+npm run web            # Web preview at localhost:8081
+
+# EAS cloud builds
+npx eas build --platform android --profile preview     # APK for sideloading
+npx eas build --platform android --profile production  # AAB for Play Store
+npx eas build --platform ios --profile production      # iOS build
 ```
 
 EAS profiles in `eas.json`:
@@ -307,16 +288,15 @@ Distribute the resulting APK however you like — direct download link, GitHub R
 
 ## Cost Breakdown
 
-> **Designed for $0/month forever.** Mobile distribution + always-online backend + database, all on free tiers.
+> Designed for **$0/month forever.** Mobile distribution + always-online backend + database, all on perpetual free tiers.
 
 | Service | Free tier | We use | Headroom |
 |---------|-----------|--------|----------|
 | **Render Web Service** | 750 hours/mo, sleeps after 15 min | always-on under monitoring | within limits |
-| **MySQL** (Aiven / FreeSQLDatabase / Filess.io) | 5 GB / 1 GB depending on provider | <50 MB | **95%+** |
-| **EAS Build (Expo)** | 30 builds/mo on free | <5 builds/mo | **80%+** |
+| **MySQL** (Aiven / FreeSQLDatabase / Filess.io) | 5 GB / 1 GB depending on provider | <50 MB | 95%+ |
+| **EAS Build (Expo)** | 30 builds/mo on free | <5 builds/mo | 80%+ |
 | **GitHub Releases** (APK distribution) | unlimited public assets | <50 MB total | unlimited |
 | **GitHub Actions** (public repo) | unlimited minutes | n/a | unlimited |
-| **Apple Developer Program** | n/a (paid $99/yr for App Store) | not used (sideload only) | — |
 
 **Total: $0/month** — including mobile distribution.
 
@@ -325,69 +305,26 @@ Distribute the resulting APK however you like — direct download link, GitHub R
 - **Render over a long-running VPS** — auto-deploys on push, free SSL, free tier includes managed Postgres or external MySQL via env vars.
 - **Expo over bare React Native** — managed builds, OTA updates, single codebase for Android + iOS + web.
 - **APK sideload over Play Store** — Play Store costs $25 once + ongoing review overhead. Sideload is free, fine for portfolio + internal testing.
-- **2-min client timeout** — Render's free-tier cold start can take 30-60 s; padding to 2 min covers worst-case wake-up cleanly.
-
-### Cold-start handling (the not-so-secret sauce)
-
-The mobile app handles Render's free-tier sleep gracefully:
-
-1. **2-minute `AbortController` timeout** in `client.ts` — generous enough to wait out a cold start.
-2. **`WakeUpNotice` component** — shows a friendly "Waking up the server, this may take a minute" banner instead of a generic spinner.
-3. **`retryWrapper.ts`** — wraps the fetch wrapper with bounded retries on transient network failures (without retrying on 4xx validation errors).
-
-For paying tiers / always-on hosting, none of this is needed — the same code just makes requests faster.
+- **2-min client timeout** — Render's free-tier cold start can take 30–60 s; padding to 2 min covers worst-case wake-up cleanly.
 
 ---
 
 ## Local Development
-
-### Backend
-
-```bash
-git clone https://github.com/Asciente-rks/todo-list.git
-cd todo-list
-npm install
-
-# Provision local MySQL with a database matching your .env
-npm run dev    # ts-node-dev with --respawn --transpile-only on src/server.ts
-```
-
-Server listens on `process.env.PORT` (Render injects this) or `10000` by default.
-
-### Frontend (mobile dev)
 
 ```bash
 git clone https://github.com/Asciente-rks/todo-list-frontend.git
 cd todo-list-frontend
 npm install
 
-npm start        # Expo dev server with QR code
-npm run android  # Android emulator / connected device
-npm run ios      # iOS simulator (macOS only)
-npm run web      # Web preview
+npm start              # Expo dev server — scan QR code with Expo Go
+npm run android        # Android emulator / connected device
+npm run ios            # iOS simulator (macOS only)
+npm run web            # Web preview
 ```
 
 Either install **Expo Go** on your phone and scan the QR code, or use a connected emulator. Set `EXPO_PUBLIC_API_URL_PLAIN` in `app.json` (or via EAS secrets) to point at your local backend (`http://<your-LAN-ip>:10000/api`) when developing.
 
 ### Environment Variables
-
-**Backend** (`.env`):
-
-```env
-PORT=10000
-NODE_ENV=development
-
-# MySQL
-DB_HOST=...
-DB_PORT=3306
-DB_NAME=todo_list
-DB_USER=...
-DB_PASSWORD=...
-
-# Auth
-JWT_SECRET=...
-JWT_EXPIRES_IN=7d
-```
 
 **Frontend** (`app.json` extra OR `eas.json` env):
 
@@ -409,6 +346,19 @@ For EAS builds, set per profile in `eas.json`:
 
 ---
 
+## Repos
+
+This app spans two repositories:
+
+| Repository | What it is | Stack |
+|-----------|-----------|-------|
+| [`todo-list`](https://github.com/Asciente-rks/todo-list) | REST API backend | Express 5 + Sequelize + MySQL + JWT |
+| [`todo-list-frontend`](https://github.com/Asciente-rks/todo-list-frontend) | Mobile + web client | **Expo / React Native** (Android, iOS, web) |
+
+The backend README covers deployment, environment variables, database schema, and API details.
+
+---
+
 ## Author
 
-Built by **Ralph Kenneth F. Sonio** ([@Asciente-rks](https://github.com/Asciente-rks)). The Android app lives at package id `com.ascienterks.todolisttsfrontend`; production builds are distributed via EAS.
+**Ralph Kenneth Sonio** — [Portfolio](https://asciente-portfolio.vercel.app) · [GitHub](https://github.com/Asciente-rks)
